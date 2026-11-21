@@ -86,3 +86,15 @@ body { background: var(--bg); }
 }
 .sig-hint { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; color: var(--muted); pointer-events: none; }
 .sig-clear { position: absolute; right: 6px; top: 6px; padding: 4px 10px; font-size: 12px; }
+
+/* Kolor statusu na krawędzi karty adresu */
+.addr-card { border-left: 5px solid var(--gray); }
+.addr-card.st-bl-ASSIGNED { border-left-color: var(--gray); }
+.addr-card.st-bl-IN_PROGRESS { border-left-color: var(--blue); }
+.addr-card.st-bl-SUBMITTED, .addr-card.st-bl-TO_REVIEW { border-left-color: var(--amber); }
+.addr-card.st-bl-AUTO_VERIFIED { border-left-color: var(--green); }
+.addr-card.st-bl-APPROVED { border-left-color: var(--teal); }
+.addr-card.st-bl-REJECTED { border-left-color: var(--red); }
+.tabs button[data-tab="list"].active { color: var(--blue); }
+.tabs button[data-tab="profile"].active { color: #7C3AED; }
+.phone .subtab { padding: 9px 9px; gap: 5px; }

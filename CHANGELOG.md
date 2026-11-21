@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0 — 2026-11-21
+
+Kolorystyka sekcji i pod-zakładki:
+
+- Każda sekcja panelu ma swój kolor i ikonę (pasek boczny, nagłówek strony, pasek u góry):
+  Pulpit niebieski, Nieruchomości cyjan, Do weryfikacji bursztyn, Handlowcy fiolet, Raporty róż, Ustawienia szary.
+- Pod-zakładki z licznikami:
+  - Nieruchomości: Wszystkie / Nieprzypisane / Przypisane (zamiast listy rozwijanej),
+  - Do weryfikacji: Wszystkie / Lokalizacja / Adres-OCR / Zdjęcia / Czas / Biometria — kolorowe etykiety powodów,
+  - Raporty: Skuteczność / Wyniki rozmów / Dziennik zdarzeń,
+  - Ustawienia: Progi weryfikacji / Biometria / Cele w raportach / Tryb demo.
+- Aplikacja: pod-zakładki Do zrobienia / Wysłane / Wszystkie, kolor statusu na krawędzi karty adresu.
+- Kolory statusów (zielony / bursztyn / czerwony) bez zmian — kolory sekcji ich nie dublują.
+
 ## 0.2.0 — 2026-11-21
 
 Biometria behawioralna jako **flagi** (nigdy automatyczne odrzucenie):

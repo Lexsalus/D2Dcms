@@ -1,6 +1,6 @@
 // Aplikacja handlowca FieldCheck (prototyp przeglądarkowy; docelowo opakowana w Capacitor → Android)
 import { t, applyDom, onLangChange, fmtDate, fmtTime, fmtDateTime } from '../assets/js/i18n.js';
-import { mountControls, versionLabel, esc, toast, badge, addrLine, tip, help } from '../assets/js/ui.js';
+import { mountControls, versionLabel, esc, toast, badge, addrLine, tip, help, subtabs, wireSubtabs } from '../assets/js/ui.js';
 import { bestStreetMatch, hasNumber, haversine, evaluate } from '../assets/js/verify.js';
 import * as S from '../assets/js/store.js';
 import { touchRecorder, sigSvg } from '../assets/js/biometrics.js';
@@ -10,7 +10,8 @@ const screen = $('#screen');
 let user = null;
 // stan nawigacji: {name, assignmentId?, visitId?}
 let nav = { name: 'list' };
-const flow = {}; // dane bieżącej wizyty w UI: {building:{url,ocr,ok}, unit:{...}, outcome, note}
+const flow = {};
+let listTab = 'todo'; // dane bieżącej wizyty w UI: {building:{url,ocr,ok}, unit:{...}, outcome, note}
 
 // ---------- start ----------
 function boot() {
@@ -83,14 +84,22 @@ const ORDER = { IN_PROGRESS: 0, ASSIGNED: 1, TO_REVIEW: 2, SUBMITTED: 2, AUTO_VE
 async function listScreen() {
   const items = (await S.myAssignments(user.id)).sort((a, b) => (ORDER[a.status] - ORDER[b.status]) || String(a.due).localeCompare(String(b.due)));
   const done = items.filter(a => S.SUBMITTED_SET.includes(a.status)).length;
+  const isTodo = a => ['ASSIGNED', 'IN_PROGRESS'].includes(a.status);
+  const shown = items.filter(a => listTab === 'all' || (listTab === 'todo' ? isTodo(a) : !isTodo(a)));
   screen.innerHTML = `
     <div class="progress-head"><h2>${t('today_progress', { a: done, b: items.length })}${help('h_progress')}</h2></div>
     <div class="pbar"><i style="width:${items.length ? done / items.length * 100 : 0}%"></i></div>
-    ${items.map(a => `
-      <button class="addr-card" data-a="${a.id}">
+    ${subtabs([
+      { id: 'todo', label: t('sub_todo'), count: items.length - done, color: '#2F6FED', tip: t('h_sub_todo') },
+      { id: 'sent', label: t('sub_sent'), count: done, color: '#0E9F8E', tip: t('h_sub_sent') },
+      { id: 'all', label: t('filter_all'), count: items.length, color: '#64748B' },
+    ], listTab)}
+    ${shown.map(a => `
+      <button class="addr-card st-bl-${a.status}" data-a="${a.id}">
         <div class="a1">${esc(addrLine(a.property))}</div>
         <div class="a2"><span>${esc(a.property.zip)} ${esc(a.property.city)}${a.due ? ' · ' + t('due', { d: fmtDate(a.due) }) : ''}</span>${badge(a.status)}</div>
       </button>`).join('') || `<div class="card muted">${t('no_assignments')}</div>`}`;
+  wireSubtabs(screen, id => { listTab = id; render(); });
   screen.querySelectorAll('[data-a]').forEach(b => b.onclick = () => go({ name: 'detail', assignmentId: b.dataset.a }));
 }
 

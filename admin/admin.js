@@ -1,13 +1,28 @@
 // Panel administratora FieldCheck (prototyp, dane lokalne)
 import { t, applyDom, onLangChange, fmtDate, fmtTime, fmtDateTime } from '../assets/js/i18n.js';
-import { mountControls, versionLabel, esc, toast, modal, badge, addrLine, download, tip, help } from '../assets/js/ui.js';
+import { mountControls, versionLabel, esc, toast, modal, badge, addrLine, download, tip, help, subtabs, wireSubtabs } from '../assets/js/ui.js';
 import * as S from '../assets/js/store.js';
 import { sigSvg } from '../assets/js/biometrics.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 let admin = null;
 const ROUTES = ['dashboard', 'properties', 'review', 'reps', 'reports', 'settings'];
-const state = { period: 'week', rep: '', propFilter: 'all', propSearch: '', selected: new Set(), assignRep: '', reviewSel: null };
+const state = { period: 'week', rep: '', propFilter: 'all', propSearch: '', selected: new Set(), assignRep: '', reviewSel: null, reviewGroup: 'all', reportTab: 'perf', setTab: 'verify' };
+
+// Kolor i ikona każdej sekcji — pasek boczny, nagłówek strony i pod-zakładki
+const SECTION = {
+  dashboard: { c: '#2F6FED', i: '▦' }, properties: { c: '#0891B2', i: '⌂' }, review: { c: '#F59E0B', i: '⚑' },
+  reps: { c: '#7C3AED', i: '☺' }, reports: { c: '#DB2777', i: '▤' }, settings: { c: '#64748B', i: '⚙' },
+};
+// Grupy powodów weryfikacji (pod-zakładki kolejki)
+const GROUPS = {
+  loc: { c: '#0891B2', codes: ['r_no_gps', 'r_gps_far', 'r_gps_inaccurate', 'r_no_geocode'] },
+  addr: { c: '#2F6FED', codes: ['r_ocr_building_unreadable', 'r_street_mismatch', 'r_building_no_mismatch', 'r_ocr_unit_unreadable', 'r_unit_mismatch', 'r_no_unit_number'] },
+  photo: { c: '#DB2777', codes: ['r_duplicate', 'r_not_camera', 'r_missing_photo'] },
+  time: { c: '#64748B', codes: ['r_late', 'r_photo_gap'] },
+  bio: { c: '#7C3AED', codes: ['r_bio_pin', 'r_bio_sig', 'r_bio_touch'] },
+};
+const groupOf = code => Object.keys(GROUPS).find(g => GROUPS[g].codes.includes(code)) || 'time';
 
 // ---------- start ----------
 function boot() {
@@ -49,9 +64,11 @@ async function render() {
   const assignments = await S.listAssignments();
   const toReview = assignments.filter(a => a.status === 'TO_REVIEW').length;
   $('#nav').innerHTML = ROUTES.map(r => `
-    <a href="#/${r}" class="${r === route ? 'active' : ''}" ${tip('h_nav_' + r)}>
-      <span>${t('nav_' + r)}</span>${r === 'review' && toReview ? `<span class="count">${toReview}</span>` : ''}
+    <a href="#/${r}" class="${r === route ? 'active' : ''}" style="--c:${SECTION[r].c}" ${tip('h_nav_' + r)}>
+      <span><i class="nav-ic">${SECTION[r].i}</i>${t('nav_' + r)}</span>${r === 'review' && toReview ? `<span class="count">${toReview}</span>` : ''}
     </a>`).join('');
+  $('#shell').style.setProperty('--accent', SECTION[route].c);
+  $('#pageIc').textContent = SECTION[route].i;
   const view = $('#view');
   ({ dashboard, properties, review, reps, reports, settings })[route](view);
 }
@@ -223,11 +240,16 @@ async function properties(view) {
   const today = new Date(); today.setDate(today.getDate() + ((7 - today.getDay()) % 7 || 7));
   const defDue = state.due || today.toISOString().slice(0, 10);
 
+  const nAssigned = props.filter(p => S.assignmentFor(p.id)).length;
   view.innerHTML = `
+    ${subtabs([
+      { id: 'all', label: t('filter_all'), count: props.length, color: '#64748B', tip: t('h_prop_filter') },
+      { id: 'unassigned', label: t('filter_unassigned'), count: props.length - nAssigned, color: '#F59E0B', tip: t('h_prop_filter') },
+      { id: 'assigned', label: t('filter_assigned'), count: nAssigned, color: '#0891B2', tip: t('h_prop_filter') },
+    ], state.propFilter)}
     <div class="toolbar">
       <label class="btn btn-primary" style="margin:0" ${tip('h_import')}>${t('import_file')}<input type="file" id="importFile" accept=".csv,.txt,.xlsx,.xls" hidden></label>
       <button class="btn" id="addAddr" ${tip('h_add_address')}>+ ${t('add_address')}</button>
-      <select id="pFilter" ${tip('h_prop_filter')}>${['all', 'unassigned', 'assigned'].map(f => `<option value="${f}" ${state.propFilter === f ? 'selected' : ''}>${t('filter_' + f)}</option>`).join('')}</select>
       ${filters(false)}
       <input id="pSearch" ${tip('h_search')} placeholder="${t('search')}" value="${esc(state.propSearch)}">
       <span class="spacer"></span>
@@ -271,7 +293,7 @@ async function properties(view) {
     </div>`;
 
   await wireFilters(view);
-  $('#pFilter').onchange = e => { state.propFilter = e.target.value; render(); };
+  wireSubtabs(view, id => { state.propFilter = id; render(); });
   $('#pSearch').oninput = debounce(e => { state.propSearch = e.target.value; render().then(() => { const s = $('#pSearch'); s.focus(); s.setSelectionRange(s.value.length, s.value.length); }); }, 250);
   $('#dueDate').onchange = e => { state.due = e.target.value; };
   view.querySelectorAll('tbody input[type=checkbox]').forEach(cb => cb.onchange = () => {
@@ -422,14 +444,21 @@ async function geocode(p) {
 // ---------- DO WERYFIKACJI ----------
 async function review(view) {
   const { asg, latest } = await data();
-  const queue = asg.filter(a => a.status === 'TO_REVIEW').map(a => latest.get(a.id)).filter(Boolean)
+  const all = asg.filter(a => a.status === 'TO_REVIEW').map(a => latest.get(a.id)).filter(Boolean)
     .sort((a, b) => a.submittedAt - b.submittedAt);
-  $('#pageTitle').textContent = t('review_title', { n: queue.length });
-  if (!queue.length) { view.innerHTML = `<div class="card"><p>${t('review_empty')}</p></div>`; return; }
+  $('#pageTitle').textContent = t('review_title', { n: all.length });
+  if (!all.length) { view.innerHTML = `<div class="card"><p>${t('review_empty')}</p></div>`; return; }
+  const inGroup = (v, g) => g === 'all' || (v.reasons || []).some(r => groupOf(r.code) === g);
+  const tabs = [{ id: 'all', label: t('filter_all'), count: all.length, color: SECTION.review.c, tip: t('h_grp_all') },
+    ...Object.keys(GROUPS).map(g => ({ id: g, label: t('grp_' + g), count: all.filter(v => inGroup(v, g)).length, color: GROUPS[g].c, tip: t('h_grp_' + g) }))
+      .filter(x => x.count)];
+  if (!tabs.some(x => x.id === state.reviewGroup)) state.reviewGroup = 'all';
+  const queue = all.filter(v => inGroup(v, state.reviewGroup));
   if (!queue.some(v => v.id === state.reviewSel)) state.reviewSel = queue[0].id;
   const v = S.getVisit(state.reviewSel);
 
   view.innerHTML = `
+    ${subtabs(tabs, state.reviewGroup)}
     <div class="review-layout">
       <div class="card" style="padding:8px">
         ${queue.map(q => {
@@ -437,13 +466,14 @@ async function review(view) {
           return `<div class="q-item ${q.id === v.id ? 'sel' : ''}" data-v="${q.id}">
             <b>${esc(p.street)} ${esc(p.building)}${p.unit ? '/' + esc(p.unit) : ''}</b>
             <div class="muted small">${esc(repName(q.userId))} · ${fmtTime(q.submittedAt)}</div>
-            <div class="r">${(q.reasons || []).map(reasonText).join(' · ')}</div></div>`;
+            <div class="chips">${(q.reasons || []).map(r => `<span class="chip" style="--c:${GROUPS[groupOf(r.code)].c}">${esc(reasonText(r))}</span>`).join('')}</div></div>`;
         }).join('')}
       </div>
       <div class="card" id="visitBody"></div>
       <div class="card decision" id="decisionBox"></div>
     </div>`;
   view.querySelectorAll('[data-v]').forEach(el => el.onclick = () => { state.reviewSel = el.dataset.v; render(); });
+  wireSubtabs(view, id => { state.reviewGroup = id; state.reviewSel = null; render(); });
   await renderVisitBody($('#visitBody'), v);
   renderDecision($('#decisionBox'), v);
 }
@@ -480,7 +510,7 @@ async function renderVisitBody(el, v) {
       <span ${tip('h_camera')}>${t('in_app_camera')} ${mark(d.cameraOk !== false)}</span>
     </div>
     ${bioBox(v)}
-    ${(v.reasons || []).length ? `<p class="small"><b>${t('reasons')}</b>${help('h_reasons')}<b>:</b> <span class="warn">${v.reasons.map(reasonText).join(' · ')}</span></p>` : ''}`;
+    ${(v.reasons || []).length ? `<p class="small"><b>${t('reasons')}</b>${help('h_reasons')}<b>:</b> ${v.reasons.map(r => `<span class="chip" style="--c:${GROUPS[groupOf(r.code)].c}">${esc(reasonText(r))}</span>`).join(' ')}</p>` : ''}`;
   el.querySelectorAll('[data-dl]').forEach(b => b.onclick = async () => {
     const ph = photos.find(x => x.id === b.dataset.dl);
     const url = await S.photoUrl(ph);
@@ -635,8 +665,13 @@ async function reports(view) {
   const cls = (v, goodMin, badMax) => v >= goodMin ? 'ok' : (badMax !== undefined && v < badMax ? 'bad' : 'warn');
 
   view.innerHTML = `
+    ${subtabs([
+      { id: 'perf', label: t('rt_perf'), color: '#DB2777', tip: t('h_rt_perf') },
+      { id: 'out', label: t('rep_outcomes'), color: '#0891B2', tip: t('h_outcomes') },
+      { id: 'audit', label: t('audit_log'), count: audit.length, color: '#64748B', tip: t('h_audit') },
+    ], state.reportTab)}
     <div class="toolbar">${filters()}<span class="spacer"></span><button class="btn" id="expCsv" ${tip('h_export')}>⬇ ${t('export_csv')}</button></div>
-    <div class="card" style="padding:0;overflow:auto">
+    <div class="card ${state.reportTab === 'perf' ? '' : 'hidden'}" data-sec="perf" style="padding:0;overflow:auto">
       <table>
         <thead><tr>
           <th>${t('col_rep')}</th><th>${t('kpi_assigned')}</th><th>${t('kpi_submitted')}</th>
@@ -660,20 +695,21 @@ async function reports(view) {
       </table>
     </div>
 
-    <div class="card mt">
+    <div class="card ${state.reportTab === 'out' ? '' : 'hidden'}" data-sec="out">
       <h3>${t('rep_outcomes')}${help('h_outcomes')}</h3>
       <table><thead><tr><th>${t('col_rep')}</th>${S.OUTCOMES.map(o => `<th>${t('out_' + o)}</th>`).join('')}</tr></thead>
       <tbody>${rows.map(r => `<tr><td>${esc(r.name)}</td>${S.OUTCOMES.map(o => `<td>${r.out[o]}</td>`).join('')}</tr>`).join('')}</tbody></table>
     </div>
 
-    <div class="card mt">
+    <div class="card ${state.reportTab === 'audit' ? '' : 'hidden'}" data-sec="audit">
       <div class="section-title"><h3 style="margin:0">${t('audit_log')}${help('h_audit')}</h3><button class="btn btn-ghost" id="expAudit" ${tip('h_export')}>⬇ CSV</button></div>
-      <div class="table-wrap" style="max-height:360px">
+      <div class="table-wrap" style="max-height:calc(100vh - 260px)">
       <table><thead><tr><th>${t('audit_when')}</th><th>${t('audit_who')}</th><th>${t('audit_action')}</th><th>${t('audit_object')}</th></tr></thead>
       <tbody>${audit.slice(0, 300).map(a => `<tr><td>${fmtDateTime(a.ts)}</td><td>${esc(repName(a.userId))}</td><td><code>${esc(a.action)}</code></td><td>${esc(a.object)}</td></tr>`).join('')}</tbody></table>
       </div>
     </div>`;
   await wireFilters(view);
+  wireSubtabs(view, id => { state.reportTab = id; render(); });
   const csv = (head, data) => '﻿' + [head, ...data].map(r => r.map(x => `"${String(x ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
   $('#expCsv').onclick = async () => {
     download(`fieldcheck_raport_${new Date().toISOString().slice(0, 10)}.csv`, csv(
@@ -692,29 +728,31 @@ async function settings(view) {
   const s = await S.getSettings();
   const numB = k => `<div class="field"><label>${t('s_' + k)}${help('h_s_' + k)}</label><input type="number" name="${k}" value="${s[k]}" min="0" step="${k.endsWith('Th') ? '0.1' : '1'}"></div>`;
   const num = (k, label) => `<div class="field"><label>${t(label)}${help('h_s_' + k)}</label><input type="number" name="${k}" value="${s[k]}" min="0"></div>`;
+  const sec = (id, html) => `<div data-sec="${id}" class="${state.setTab === id ? '' : 'hidden'}">${html}</div>`;
+  const chk = k => `<label style="display:flex;gap:8px;align-items:center;font-weight:400;margin-bottom:6px"><input type="checkbox" name="${k}" ${s[k] ? 'checked' : ''}> ${t(k === 'demoGps' ? 's_demo_gps' : 's_' + k)}${help('h_s_' + k)}</label>`;
+  const grid = html => `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">${html}</div>`;
   view.innerHTML = `
+    ${subtabs([
+      { id: 'verify', label: t('thresholds'), color: '#F59E0B', tip: t('h_st_verify') },
+      { id: 'bio', label: t('bio_title'), color: '#7C3AED', tip: t('h_bio_section') },
+      { id: 'targets', label: t('targets'), color: '#DB2777', tip: t('h_targets') },
+      { id: 'demo', label: t('demo_section'), color: '#64748B', tip: t('h_st_demo') },
+    ], state.setTab)}
     <div class="grid-2">
       <form class="card" id="setForm">
-        <h3>${t('thresholds')}</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
+        ${sec('verify', `<h3>${t('thresholds')}</h3>${grid(`
           ${num('streetMin', 's_street_min')}${num('gpsMax', 's_gps_max')}
           ${num('gpsAcc', 's_gps_acc')}${num('gapMax', 's_gap_max')}
           ${num('dueTol', 's_due_tol')}${num('phashMax', 's_phash')}
-          ${num('cameraAge', 's_camera_age')}${num('retentionDays', 's_retention')}
-        </div>
-        <h3 class="mt">${t('targets')}${help('h_targets')}</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
+          ${num('cameraAge', 's_camera_age')}${num('retentionDays', 's_retention')}`)}`)}
+        ${sec('bio', `<h3>${t('bio_title')}${help('h_bio_section')}</h3>
+          ${['bioPin', 'bioSig', 'bioTouch', 'bioToReview'].map(chk).join('')}
+          <div style="margin-top:8px">${grid(`${numB('bioPinTh')}${numB('bioPinEnroll')}${numB('bioSigTh')}${numB('bioSigEnroll')}${numB('bioTouchTh')}${numB('bioTouchEnroll')}`)}</div>
+          <p class="muted small">${t('bio_note')}</p>`)}
+        ${sec('targets', `<h3>${t('targets')}${help('h_targets')}</h3>${grid(`
           ${num('targetPlan', 's_target_plan')}${num('targetAuto', 's_target_auto')}
-          ${num('targetRejected', 's_target_rejected')}${num('targetReviewH', 's_target_review')}
-        </div>
-        <h3 class="mt">${t('bio_title')}${help('h_bio_section')}</h3>
-        ${['bioPin', 'bioSig', 'bioTouch', 'bioToReview'].map(k => `<label style="display:flex;gap:8px;align-items:center;font-weight:400;margin-bottom:6px"><input type="checkbox" name="${k}" ${s[k] ? 'checked' : ''}> ${t('s_' + k)}${help('h_s_' + k)}</label>`).join('')}
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;margin-top:8px">
-          ${numB('bioPinTh')}${numB('bioPinEnroll')}${numB('bioSigTh')}${numB('bioSigEnroll')}${numB('bioTouchTh')}${numB('bioTouchEnroll')}
-        </div>
-        <p class="muted small">${t('bio_note')}</p>
-        <h3 class="mt">${t('demo_section')}</h3>
-        <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" name="demoGps" ${s.demoGps ? 'checked' : ''}> ${t('s_demo_gps')}${help('h_s_demoGps')}</label>
+          ${num('targetRejected', 's_target_rejected')}${num('targetReviewH', 's_target_review')}`)}`)}
+        ${sec('demo', `<h3>${t('demo_section')}</h3>${chk('demoGps')}`)}
         <div class="toolbar mt" style="margin-bottom:0"><button class="btn btn-primary">${t('save')}</button></div>
       </form>
       <div class="card">
@@ -727,6 +765,11 @@ async function settings(view) {
         </div>
       </div>
     </div>`;
+  wireSubtabs(view, id => {
+    state.setTab = id;
+    view.querySelectorAll('.subtab').forEach(b => b.classList.toggle('active', b.dataset.sub === id));
+    view.querySelectorAll('[data-sec]').forEach(el => el.classList.toggle('hidden', el.dataset.sec !== id));
+  });
   $('#setForm').onsubmit = async e => {
     e.preventDefault();
     const f = new FormData(e.target);

@@ -359,3 +359,50 @@ extend('uk', {
   h_signature: 'Підпис пальцем. Перші підписи утворюють зразок, наступні порівнюються з ним.',
   h_sig_clear: 'Стерти підпис і підписатися ще раз.',
 });
+
+// ---------- pod-zakładki ----------
+extend('pl', {
+  grp_loc: 'Lokalizacja', grp_addr: 'Adres / OCR', grp_photo: 'Zdjęcia', grp_time: 'Czas', grp_bio: 'Biometria',
+  rt_perf: 'Skuteczność', sub_todo: 'Do zrobienia', sub_sent: 'Wysłane',
+  h_grp_all: 'Wszystkie wizyty czekające na decyzję.',
+  h_grp_loc: 'Problemy z GPS: brak, za daleko od adresu, niska dokładność, adres bez współrzędnych.',
+  h_grp_addr: 'Napis ze zdjęcia nie pasuje do adresu albo jest nieczytelny; brak numeru na drzwiach.',
+  h_grp_photo: 'Duplikat zdjęcia z innej wizyty lub zdjęcie spoza aparatu.',
+  h_grp_time: 'Wizyta po terminie albo za długi odstęp między zdjęciami.',
+  h_grp_bio: 'Flagi biometrii: inny rytm PIN-u, niezgodny podpis, inny styl dotyku.',
+  h_rt_perf: 'Wskaźniki skuteczności handlowców w wybranym okresie.',
+  h_st_verify: 'Progi, według których system zalicza wizytę automatycznie.',
+  h_st_demo: 'Ustawienia do testów i dane przykładowe.',
+  h_sub_todo: 'Adresy jeszcze nieodwiedzone lub rozpoczęte.',
+  h_sub_sent: 'Adresy z wysłaną wizytą i jej wynikiem kontroli.',
+});
+extend('en', {
+  grp_loc: 'Location', grp_addr: 'Address / OCR', grp_photo: 'Photos', grp_time: 'Time', grp_bio: 'Biometrics',
+  rt_perf: 'Performance', sub_todo: 'To do', sub_sent: 'Submitted',
+  h_grp_all: 'All visits waiting for a decision.',
+  h_grp_loc: 'GPS problems: missing, too far from the address, low accuracy, address without coordinates.',
+  h_grp_addr: 'Text in the photo does not match the address or is unreadable; no number on the door.',
+  h_grp_photo: 'Duplicate photo from another visit or a photo not taken with the camera.',
+  h_grp_time: 'Visit after the due date or too long a gap between photos.',
+  h_grp_bio: 'Biometric flags: different PIN rhythm, signature mismatch, different touch style.',
+  h_rt_perf: 'Field rep performance indicators for the selected period.',
+  h_st_verify: 'Thresholds the system uses to pass a visit automatically.',
+  h_st_demo: 'Test settings and sample data.',
+  h_sub_todo: 'Addresses not yet visited or started.',
+  h_sub_sent: 'Addresses with a submitted visit and its check result.',
+});
+extend('uk', {
+  grp_loc: 'Місцезнаходження', grp_addr: 'Адреса / OCR', grp_photo: 'Фото', grp_time: 'Час', grp_bio: 'Біометрія',
+  rt_perf: 'Ефективність', sub_todo: 'До виконання', sub_sent: 'Надіслані',
+  h_grp_all: 'Усі візити, що чекають на рішення.',
+  h_grp_loc: 'Проблеми з GPS: немає, задалеко від адреси, низька точність, адреса без координат.',
+  h_grp_addr: 'Напис на фото не відповідає адресі або нечитабельний; немає номера на дверях.',
+  h_grp_photo: 'Дублікат фото з іншого візиту або фото не з камери.',
+  h_grp_time: 'Візит після терміну або завеликий інтервал між фото.',
+  h_grp_bio: 'Біометричні позначки: інший ритм PIN, підпис не збігається, інший стиль дотику.',
+  h_rt_perf: 'Показники ефективності представників за вибраний період.',
+  h_st_verify: 'Пороги, за якими система автоматично зараховує візит.',
+  h_st_demo: 'Налаштування для тестів і демо-дані.',
+  h_sub_todo: 'Адреси, ще не відвідані або розпочаті.',
+  h_sub_sent: 'Адреси з надісланим візитом і результатом перевірки.',
+});

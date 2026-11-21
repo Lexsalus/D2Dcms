@@ -4,7 +4,7 @@ System kontroli wizyt w terenie (windykacja terenowa, D2D): panel administratora
 Handlowiec dostaje listę adresów, na miejscu robi 2 zdjęcia (budynek z numerem, numer lokalu), wybiera wynik rozmowy,
 a system sam sprawdza OCR, GPS, czas i duplikaty. Wizyty wątpliwe trafiają do ręcznej weryfikacji.
 
-> **Status: prototyp 0.2.x** — działa w przeglądarce, dane zapisywane lokalnie (localStorage + IndexedDB).
+> **Status: prototyp 0.3.x** — działa w przeglądarce, dane zapisywane lokalnie (localStorage + IndexedDB).
 > Backend (Supabase) i aplikacja Android (Capacitor) — kolejne etapy, patrz [docs/PLAN.md](docs/PLAN.md).
 
 ## Uruchomienie
@@ -44,7 +44,7 @@ Panel i aplikacja w tej samej przeglądarce współdzielą dane — przypisanie 
 
 **Biometria behawioralna (flagi):** rytm PIN-u, podpis palcem, dynamika dotyku — szczegóły w [docs/BIOMETRIA.md](docs/BIOMETRIA.md).
 
-**Wspólne:** języki PL / EN / UA, tryb dzień / noc, podpowiedzi (dymki i ikonki **[?]**) przy elementach interfejsu.
+**Wspólne:** języki PL / EN / UA, tryb dzień / noc, kolor i ikona każdej sekcji, pod-zakładki z licznikami, podpowiedzi (dymki i ikonki **[?]**) przy elementach interfejsu.
 
 ## Struktura
 

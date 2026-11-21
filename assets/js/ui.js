@@ -115,3 +115,15 @@ export const help = key => `<span class="help" tabindex="0" role="button" aria-l
   }, true);
   addEventListener('scroll', hide, true);
 })();
+
+// Pod-zakładki: items [{id, label, count?, color?, tip?}] → pasek; wybór przez data-sub
+export function subtabs(items, active) {
+  return `<div class="subtabs" role="tablist">${items.map(i => `
+    <button type="button" class="subtab ${i.id === active ? 'active' : ''}" data-sub="${i.id}" role="tab"
+      style="--tabc:${i.color || 'var(--accent, var(--blue))'}" ${i.tip ? `data-tip="${esc(i.tip)}"` : ''}>
+      ${i.color ? '<i class="dot"></i>' : ''}${esc(i.label)}${i.count !== undefined ? `<span class="cnt">${i.count}</span>` : ''}
+    </button>`).join('')}</div>`;
+}
+export function wireSubtabs(root, fn) {
+  root.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => fn(b.dataset.sub));
+}
