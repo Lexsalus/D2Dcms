@@ -1,0 +1,159 @@
+/* FieldCheck — wspólne style (panel + aplikacja). Motyw: [data-theme="light"|"dark"] na <html> */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --navy: #12263F;
+  --blue: #2F6FED;
+  --teal: #0E9F8E;
+  --green: #16A34A;
+  --amber: #F59E0B;
+  --red: #DC2626;
+  --gray: #64748B;
+  --radius: 10px;
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+[data-theme="light"] {
+  --bg: #F3F5F9;
+  --surface: #FFFFFF;
+  --surface-2: #F8FAFC;
+  --border: #E2E8F0;
+  --text: #0F172A;
+  --muted: #64748B;
+  --nav-bg: var(--navy);
+  --nav-text: #E2E8F0;
+  --shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 2px 8px rgba(15, 23, 42, .04);
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --bg: #0B1220;
+  --surface: #121C2E;
+  --surface-2: #17233A;
+  --border: #24324B;
+  --text: #E5EAF2;
+  --muted: #8C9AB3;
+  --nav-bg: #0A1628;
+  --nav-text: #CBD5E1;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--blue); }
+h1, h2, h3 { margin: 0 0 .5em; line-height: 1.2; }
+h1 { font-size: 22px; }
+h2 { font-size: 17px; }
+h3 { font-size: 15px; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.hidden { display: none !important; }
+
+/* Przyciski i pola */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  padding: 8px 14px; border-radius: 8px; font: inherit; font-weight: 500;
+  cursor: pointer; text-decoration: none; white-space: nowrap;
+}
+.btn:hover { filter: brightness(.97); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+.btn-success { background: var(--green); border-color: var(--green); color: #fff; }
+.btn-danger { background: var(--red); border-color: var(--red); color: #fff; }
+.btn-ghost { background: transparent; }
+.btn-block { width: 100%; }
+.btn-lg { padding: 14px 18px; font-size: 16px; border-radius: 12px; }
+
+input, select, textarea {
+  font: inherit; color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+}
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--blue); outline-offset: -1px; }
+label { display: block; font-weight: 500; margin-bottom: 4px; }
+.field { margin-bottom: 12px; }
+.field input, .field select, .field textarea { width: 100%; }
+
+/* Karty, tabele */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px;
+}
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+th { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: var(--surface-2); }
+
+/* Statusy */
+.badge {
+  display: inline-block; padding: 2px 9px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.st-ASSIGNED    { background: rgba(100,116,139,.15); color: var(--gray); }
+.st-IN_PROGRESS { background: rgba(47,111,237,.15);  color: var(--blue); }
+.st-SUBMITTED   { background: rgba(14,159,142,.15);  color: var(--teal); }
+.st-AUTO_VERIFIED { background: rgba(22,163,74,.15); color: var(--green); }
+.st-TO_REVIEW   { background: rgba(245,158,11,.18);  color: #B45309; }
+[data-theme="dark"] .st-TO_REVIEW { color: var(--amber); }
+.st-APPROVED    { background: rgba(14,159,142,.18);  color: var(--teal); }
+.st-REJECTED    { background: rgba(220,38,38,.15);   color: var(--red); }
+
+.ok { color: var(--green); }
+.bad { color: var(--red); }
+.warn { color: var(--amber); }
+
+/* Przełączniki języka/motywu */
+.controls { display: inline-flex; gap: 6px; align-items: center; }
+.controls select, .controls button {
+  padding: 5px 8px; font-size: 13px; border-radius: 6px;
+  background: transparent; color: inherit; border: 1px solid currentColor; opacity: .85; cursor: pointer;
+}
+.controls select option { color: #0F172A; }
+.version { font-size: 11px; opacity: .6; }
+
+/* Toast */
+#toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+  background: var(--navy); color: #fff; padding: 10px 16px; border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.25); z-index: 9999; opacity: 0; pointer-events: none;
+  transition: opacity .2s;
+}
+#toast.show { opacity: 1; }
+
+/* Modal */
+.modal-back {
+  position: fixed; inset: 0; background: rgba(2,6,23,.55); display: flex;
+  align-items: center; justify-content: center; z-index: 900; padding: 16px;
+}
+.modal { width: min(520px, 100%); max-height: 90vh; overflow: auto; }
+
+/* Zdjęcie zastępcze */
+.ph-empty {
+  display: flex; align-items: center; justify-content: center; background: var(--surface-2);
+  border: 1px dashed var(--border); border-radius: 8px; color: var(--muted); min-height: 160px;
+}
+
+/* Podpowiedzi: ikonka [?] i dymek */
+.help {
+  display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px;
+  border-radius: 50%; border: 1px solid currentColor; font-size: 11px; font-weight: 700; line-height: 1;
+  opacity: .55; cursor: help; margin-left: 5px; vertical-align: middle; user-select: none; flex: none;
+  text-transform: none; letter-spacing: 0;
+}
+.help:hover, .help:focus { opacity: 1; outline: none; color: var(--blue); }
+#tip {
+  position: fixed; z-index: 10000; max-width: 280px; padding: 8px 11px; border-radius: 8px;
+  background: #0F172A; color: #F1F5F9; font-size: 12.5px; font-weight: 400; line-height: 1.4;
+  box-shadow: 0 6px 24px rgba(0,0,0,.3); pointer-events: none; opacity: 0; transition: opacity .12s;
+  text-transform: none; letter-spacing: 0;
+}
+[data-theme="dark"] #tip { background: #E5EAF2; color: #0F172A; }
+#tip.show { opacity: 1; }

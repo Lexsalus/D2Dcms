@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pl" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FieldCheck</title>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <script>document.documentElement.dataset.theme = localStorage.getItem('fc.theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');</script>
+  <style>
+    .hero { background: var(--nav-bg); color: #fff; padding: 22px 24px 70px; }
+    .hero .row { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .hero .logo { font-size: 22px; font-weight: 600; }
+    .hero .logo b { color: var(--teal); }
+    .hero h1 { max-width: 900px; margin: 40px auto 0; font-size: 26px; font-weight: 600; }
+    .tiles { max-width: 900px; margin: -44px auto 0; padding: 0 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .tile { display: block; text-decoration: none; color: inherit; padding: 22px; }
+    .tile:hover { outline: 2px solid var(--blue); }
+    .tile .ic { font-size: 30px; }
+    .tile h2 { margin: 10px 0 6px; }
+    .foot { max-width: 900px; margin: 22px auto; padding: 0 16px; color: var(--muted); font-size: 13px; }
+    @media (max-width: 640px) { .tiles { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <div class="row"><div class="logo">Field<b>Check</b></div><div id="ctl"></div></div>
+    <h1 data-i18n="tagline"></h1>
+  </div>
+  <div class="tiles">
+    <a class="card tile" href="admin/"><div class="ic">🖥️</div><h2 data-i18n="open_admin"></h2><p class="muted" data-i18n="open_admin_desc"></p></a>
+    <a class="card tile" href="app/"><div class="ic">📱</div><h2 data-i18n="open_app"></h2><p class="muted" data-i18n="open_app_desc"></p></a>
+  </div>
+  <div class="foot"><span data-i18n="prototype_note"></span> · <span id="ver"></span></div>
+  <script type="module">
+    import { applyDom, onLangChange } from './assets/js/i18n.js';
+    import { mountControls, versionLabel } from './assets/js/ui.js';
+    mountControls(document.getElementById('ctl'));
+    const paint = () => { applyDom(); document.getElementById('ver').textContent = versionLabel(); };
+    onLangChange(paint); paint();
+  </script>
+</body>
+</html>
