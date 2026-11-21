@@ -2,6 +2,9 @@
 // Wszystkie metody są async i odpowiadają przyszłym wywołaniom Supabase (patrz docs/ARCHITEKTURA.md),
 // więc podmiana backendu nie wymaga zmian w ekranach.
 import { DEFAULT_SETTINGS, evaluate, perceptualHash } from './verify.js';
+import { BIO_DEFAULTS, pinVector, pinScore, sigFeatures, sigScore, touchScore } from './biometrics.js';
+
+const SETTINGS0 = { ...DEFAULT_SETTINGS, ...BIO_DEFAULTS };
 
 const DB_KEY = 'fc.db.v1';
 const SESSION_KEY = { admin: 'fc.session.admin', rep: 'fc.session.rep' };
@@ -37,12 +40,12 @@ async function idbClear() {
 
 // ---------- tabele ----------
 function empty() {
-  return { users: [], properties: [], assignments: [], visits: [], photos: [], audit: [], settings: { ...DEFAULT_SETTINGS } };
+  return { users: [], properties: [], assignments: [], visits: [], photos: [], audit: [], settings: { ...SETTINGS0 } };
 }
 function load() {
   try {
     const db = JSON.parse(localStorage.getItem(DB_KEY));
-    if (db && db.users) { db.settings = { ...DEFAULT_SETTINGS, ...db.settings }; return db; }
+    if (db && db.users) { db.settings = { ...SETTINGS0, ...db.settings }; return db; }
   } catch { /* uszkodzone dane → seed */ }
   return null;
 }
@@ -78,15 +81,18 @@ export async function loginAdmin(email, password) {
   audit(u.id, 'login', 'panel'); save();
   return u;
 }
-export async function loginRep(userId, pin) {
+export async function loginRep(userId, pin, pinTimes = []) {
   const u = db.users.find(x => x.id === userId && x.role === 'rep');
   if (!u || u.pin !== pin) throw new Error('bad_login');
   if (!u.active) throw new Error('account_inactive');
   const dev = deviceId();
   if (u.deviceId && u.deviceId !== dev) throw new Error('device_bound');
   u.deviceId = dev;
-  localStorage.setItem(SESSION_KEY.rep, JSON.stringify({ userId: u.id, sv: u.sv || 0 }));
-  audit(u.id, 'login', 'app ' + dev); save();
+  const pinBio = pinCheck(u, pinTimes);
+  localStorage.setItem(SESSION_KEY.rep, JSON.stringify({ userId: u.id, sv: u.sv || 0, pinBio }));
+  audit(u.id, 'login', 'app ' + dev);
+  if (pinBio?.flag) audit(u.id, 'bio_pin_flag', `score ${pinBio.score}`);
+  save();
   return u;
 }
 export function currentUser(kind) {
@@ -97,6 +103,52 @@ export function currentUser(kind) {
     return u;
   } catch { return null; }
 }
+export function sessionBio() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY.rep))?.pinBio || null; } catch { return null; }
+}
+
+// ---------- biometria behawioralna (tylko flagi) ----------
+const bioOf = u => (u.bio ??= { pin: [], sig: [], touch: [] });
+function pinCheck(u, times) {
+  const s = db.settings;
+  if (!s.bioPin || times.length < 4) return null;
+  const vec = pinVector(times), B = bioOf(u);
+  const same = B.pin.filter(x => x.length === vec.length);
+  if (same.length < s.bioPinEnroll) { B.pin.push(vec); return { state: 'enroll', n: same.length + 1, of: s.bioPinEnroll }; }
+  const score = pinScore(same.slice(-10), vec);
+  const flag = score > s.bioPinTh;
+  if (!flag) { B.pin.push(vec); if (B.pin.length > 30) B.pin.shift(); } // profil uczy się na zgodnych próbach
+  return { state: 'check', score, flag };
+}
+function sigCheck(u, strokes) {
+  const s = db.settings;
+  if (!s.bioSig || !strokes?.length) return null;
+  const f = sigFeatures(strokes); if (!f) return null;
+  const B = bioOf(u);
+  if (B.sig.length < s.bioSigEnroll) { B.sig.push(f); return { state: 'enroll', n: B.sig.length, of: s.bioSigEnroll }; }
+  const r = sigScore(B.sig, f);
+  return { state: 'check', ...r, flag: r.score > s.bioSigTh };
+}
+function touchCheck(u, f) {
+  const s = db.settings;
+  if (!s.bioTouch || !f) return null;
+  const B = bioOf(u);
+  if (B.touch.length < s.bioTouchEnroll) { B.touch.push(f); return { state: 'enroll', n: B.touch.length, of: s.bioTouchEnroll }; }
+  const score = touchScore(B.touch.slice(-20), f);
+  const flag = score != null && score > s.bioTouchTh;
+  if (!flag && score != null) { B.touch.push(f); if (B.touch.length > 40) B.touch.shift(); }
+  return { state: 'check', score, flag };
+}
+export function bioStatus(u) {
+  const B = u.bio || { pin: [], sig: [], touch: [] }, s = db.settings;
+  const pinLens = B.pin.reduce((m, v) => (m[v.length] = (m[v.length] || 0) + 1, m), {});
+  return {
+    pin: Math.min(s.bioPinEnroll, Math.max(0, ...Object.values(pinLens))), pinOf: s.bioPinEnroll,
+    sig: Math.min(s.bioSigEnroll, B.sig.length), sigOf: s.bioSigEnroll,
+    touch: Math.min(s.bioTouchEnroll, B.touch.length), touchOf: s.bioTouchEnroll,
+  };
+}
+
 export function logout(kind) { localStorage.removeItem(SESSION_KEY[kind]); }
 
 // ---------- odczyty ----------
@@ -133,6 +185,7 @@ export async function repAction(admin, repId, action) {
   if (action === 'deactivate') { u.active = false; u.sv = (u.sv || 0) + 1; }
   if (action === 'reset_device') u.deviceId = null;
   if (action === 'remote_logout') u.sv = (u.sv || 0) + 1;
+  if (action === 'reset_bio') u.bio = null;
   audit(admin.id, 'rep_' + action, u.name); save();
 }
 
@@ -207,7 +260,7 @@ export async function startVisit(user, assignmentId) {
   if (!a) throw new Error('not_found');
   let v = lastVisit(a.id);
   if (v && !v.submittedAt) return v; // kontynuacja
-  v = { id: uid(), assignmentId: a.id, propertyId: a.propertyId, userId: user.id, startedAt: Date.now(), status: 'IN_PROGRESS' };
+  v = { id: uid(), assignmentId: a.id, propertyId: a.propertyId, userId: user.id, startedAt: Date.now(), status: 'IN_PROGRESS', bio: { pin: sessionBio() } };
   db.visits.push(v);
   a.status = 'IN_PROGRESS'; a.updatedAt = Date.now();
   audit(user.id, 'visit_start', a.propertyId); save();
@@ -231,7 +284,7 @@ export async function addPhoto(user, visitId, type, dataUrl, meta = {}) {
   return id;
 }
 
-export async function submitVisit(user, visitId, { outcome, note }) {
+export async function submitVisit(user, visitId, { outcome, note, signature, touch }) {
   const v = getVisit(visitId);
   if (!v || v.userId !== user.id || v.submittedAt) throw new Error('not_allowed');
   v.outcome = outcome; v.note = (note || '').slice(0, 300);
@@ -241,6 +294,16 @@ export async function submitVisit(user, visitId, { outcome, note }) {
   const photos = visitPhotos(v.id);
   const otherHashes = db.photos.filter(x => x.visitId !== v.id && x.hash).map(x => x.hash);
   const res = evaluate(p, a, v, photos, otherHashes, db.settings);
+  // biometria: flagi dokładane do powodów (gdy włączone „kieruj do weryfikacji”)
+  const u = db.users.find(x => x.id === user.id);
+  v.bio = { ...(v.bio || {}), sig: sigCheck(u, signature), touch: touchCheck(u, touch) };
+  if (signature?.length) v.signature = signature;
+  const bioFlags = [['pin', 'r_bio_pin'], ['sig', 'r_bio_sig'], ['touch', 'r_bio_touch']]
+    .filter(([k]) => v.bio[k]?.flag).map(([k, code]) => ({ code, n: v.bio[k].score, bio: true }));
+  if (bioFlags.length) {
+    audit(user.id, 'bio_flag', bioFlags.map(f => f.code).join(', '));
+    if (db.settings.bioToReview) { res.reasons.push(...bioFlags); res.status = 'TO_REVIEW'; }
+  }
   v.reasons = res.reasons; v.details = res.details; v.status = res.status;
   a.status = res.status; a.updatedAt = Date.now();
   audit(user.id, 'visit_submit', `${p.street} ${p.building}/${p.unit || ''} → ${res.status}`); save();

@@ -33,9 +33,10 @@ Decyzja o statusie wizyty zawsze zapada po stronie serwera; OCR na telefonie sł
 | Tabela | Pola |
 |---|---|
 | `users` | id, role (`admin`/`manager`/`rep`), name, email, active, device_id, session_version |
+| `bio_profiles` | user_id, pin_samples (jsonb), sig_templates (jsonb), touch_samples (jsonb), updated_at — osobna tabela, ostrzejszy RLS |
 | `properties` | id, street, building, unit, zip, city, lat, lng, notes, created_at |
 | `assignments` | id, property_id, user_id, due, status, assigned_by, created_at, updated_at |
-| `visits` | id, assignment_id, property_id, user_id, started_at, submitted_at, gps_lat, gps_lng, gps_accuracy, outcome, note, status, reasons[], details (jsonb), decision, decision_reason, decided_by, decided_at |
+| `visits` | id, assignment_id, bio (jsonb: wyniki pin/sig/touch), signature (jsonb), property_id, user_id, started_at, submitted_at, gps_lat, gps_lng, gps_accuracy, outcome, note, status, reasons[], details (jsonb), decision, decision_reason, decided_by, decided_at |
 | `photos` | id, visit_id, type (`building`/`unit`/`door`), storage_key, ocr_text, ocr_conf, phash, taken_at |
 | `audit_log` | id, user_id, action, object, ip, ts |
 | `settings` | progi kontroli i cele raportów (jeden wiersz) |

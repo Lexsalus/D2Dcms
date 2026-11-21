@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0 — 2026-11-21
+
+Biometria behawioralna jako **flagi** (nigdy automatyczne odrzucenie):
+
+- Rytm PIN-u przy logowaniu w aplikacji — profil z pierwszych logowań, potem porównanie odstępów między cyframi.
+- Podpis palcem na podsumowaniu wizyty — pierwsze podpisy tworzą wzór, kolejne porównywane (kształt DTW, tempo, rytm).
+- Dynamika dotyku w tle podczas wizyty — czas i odstępy stuknięć, wielkość kontaktu, prędkość przewijania.
+- Panel: wyniki biometrii i miniatura podpisu w szczegółach wizyty, postęp nauki profilu i reset profilu u handlowca,
+  ustawienia (włączniki, progi, liczba próbek do nauki, „flaga kieruje do weryfikacji”).
+- Testy: `tests/biometrics.test.mjs`. Dokumentacja: `docs/BIOMETRIA.md`.
+
 ## 0.1.0 — 2026-11-21
 
 Pierwszy prototyp (bez serwera, dane lokalne w przeglądarce).

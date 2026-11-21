@@ -4,7 +4,7 @@ System kontroli wizyt w terenie (windykacja terenowa, D2D): panel administratora
 Handlowiec dostaje listę adresów, na miejscu robi 2 zdjęcia (budynek z numerem, numer lokalu), wybiera wynik rozmowy,
 a system sam sprawdza OCR, GPS, czas i duplikaty. Wizyty wątpliwe trafiają do ręcznej weryfikacji.
 
-> **Status: prototyp 0.1.x** — działa w przeglądarce, dane zapisywane lokalnie (localStorage + IndexedDB).
+> **Status: prototyp 0.2.x** — działa w przeglądarce, dane zapisywane lokalnie (localStorage + IndexedDB).
 > Backend (Supabase) i aplikacja Android (Capacitor) — kolejne etapy, patrz [docs/PLAN.md](docs/PLAN.md).
 
 ## Uruchomienie
@@ -26,7 +26,7 @@ a system sam sprawdza OCR, GPS, czas i duplikaty. Wizyty wątpliwe trafiają do 
 Panel i aplikacja w tej samej przeglądarce współdzielą dane — przypisanie w panelu od razu widać w aplikacji, a wysłana wizyta trafia do panelu.
 *Ustawienia → Przywróć dane demo* wczytuje przykładowy zestaw od nowa.
 
-## Funkcje (0.1)
+## Funkcje (0.2)
 
 **Panel administratora**
 - Pulpit: KPI, realizacja planu wg handlowca, statusy adresów, ostatnie wizyty, mapa (Leaflet/OSM).
@@ -41,6 +41,8 @@ Panel i aplikacja w tej samej przeglądarce współdzielą dane — przypisanie 
 - Wizyta w 2 krokach: zdjęcie budynku → zdjęcie lokalu (lub drzwi „brak numeru”), wstępny odczyt OCR na urządzeniu.
 - Podsumowanie, wynik rozmowy, notatka, wysłanie → natychmiastowy wynik kontroli.
 - Znak wodny (handlowiec + urządzenie + data), zasłona przy przełączaniu aplikacji, blokada kopiowania.
+
+**Biometria behawioralna (flagi):** rytm PIN-u, podpis palcem, dynamika dotyku — szczegóły w [docs/BIOMETRIA.md](docs/BIOMETRIA.md).
 
 **Wspólne:** języki PL / EN / UA, tryb dzień / noc, podpowiedzi (dymki i ikonki **[?]**) przy elementach interfejsu.
 
@@ -57,6 +59,7 @@ assets/js/
   ui.js               motyw, przełączniki, toast, modal, tooltipy
   store.js            warstwa danych (atrapa backendu, API jak docelowe)
   verify.js           reguły automatycznej weryfikacji
+  biometrics.js       biometria behawioralna (PIN, podpis, dotyk)
 assets/css/base.css   wspólne style i paleta
 docs/                 dokumentacja techniczna
 ```
@@ -71,5 +74,6 @@ Schemat: `MAJOR.MINOR.PATCH` — PATCH poprawki, MINOR nowe funkcje, MAJOR zmian
 
 - [docs/ARCHITEKTURA.md](docs/ARCHITEKTURA.md) — warstwy, model danych, przejście na Supabase
 - [docs/WERYFIKACJA.md](docs/WERYFIKACJA.md) — statusy i reguły automatycznej kontroli
+- [docs/BIOMETRIA.md](docs/BIOMETRIA.md) — rytm PIN-u, podpis, dynamika dotyku
 - [docs/ANDROID.md](docs/ANDROID.md) — aplikacja Android (Capacitor), ochrona ekranu, OCR
 - [docs/PLAN.md](docs/PLAN.md) — etapy prac

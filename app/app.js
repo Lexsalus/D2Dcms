@@ -3,6 +3,7 @@ import { t, applyDom, onLangChange, fmtDate, fmtTime, fmtDateTime } from '../ass
 import { mountControls, versionLabel, esc, toast, badge, addrLine, tip, help } from '../assets/js/ui.js';
 import { bestStreetMatch, hasNumber, haversine, evaluate } from '../assets/js/verify.js';
 import * as S from '../assets/js/store.js';
+import { touchRecorder, sigSvg } from '../assets/js/biometrics.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const screen = $('#screen');
@@ -60,10 +61,19 @@ async function loginScreen() {
     <p class="muted small" style="text-align:center;margin-top:14px">${t('prototype_note')}<br>${versionLabel()}</p>`;
   mountControls($('#ctl'));
   $('#ctl').style.color = 'var(--text)';
+  // rytm PIN-u: czas pojawienia się każdej cyfry (klawiatura ekranowa nie daje czasu przytrzymania)
+  let pinTimes = [];
+  $('[name=pin]').addEventListener('input', e => {
+    const n = e.target.value.length;
+    if (n === pinTimes.length + 1) pinTimes.push(e.timeStamp);
+    else pinTimes = pinTimes.slice(0, n); // kasowanie / wklejenie
+    if (n === 0) pinTimes = [];
+  });
   $('#lf').onsubmit = async e => {
     e.preventDefault();
     const f = new FormData(e.target);
-    try { await S.loginRep(f.get('rep'), f.get('pin')); go({ name: 'list' }); }
+    const times = pinTimes.length === String(f.get('pin')).length ? pinTimes : [];
+    try { await S.loginRep(f.get('rep'), f.get('pin'), times); go({ name: 'list' }); }
     catch (err) { const el = $('#err'); el.textContent = t(err.message); el.classList.remove('hidden'); }
   };
 }
@@ -107,7 +117,9 @@ async function detailScreen() {
   const st = $('#start');
   if (st) st.onclick = async () => {
     const v = await S.startVisit(user, a.id);
+    flow.touch?.stop();
     for (const k in flow) delete flow[k];
+    flow.touch = touchRecorder(); // dynamika dotyku w trakcie wizyty
     // przy kontynuacji odtwórz zrobione zdjęcia
     for (const ph of S.visitPhotos(v.id)) {
       const slot = ph.type === 'building' ? 'building' : 'unit';
@@ -251,14 +263,55 @@ async function summaryScreen() {
     <h3 style="margin-top:16px">${t('outcome')}${help('h_outcome')}</h3>
     <div class="outcomes">${S.OUTCOMES.map(o => `<button class="outcome ${flow.outcome === o ? 'sel' : ''}" data-o="${o}">${t('out_' + o)}</button>`).join('')}</div>
     <div class="field" style="margin-top:14px"><label>${t('note_optional')}${help('h_note')}</label><textarea id="note" rows="3" maxlength="300">${esc(flow.note || '')}</textarea></div>
+    ${s.bioSig ? `<div class="field">
+      <label>${t('signature')}${help('h_signature')}</label>
+      <div class="sig-wrap" data-nobio>
+        <canvas id="sig" class="sig-pad"></canvas>
+        <span class="sig-hint ${flow.sig?.length ? 'hidden' : ''}">${t('sig_hint')}</span>
+        <button type="button" class="btn btn-ghost sig-clear" id="sigClear" ${tip('h_sig_clear')}>${t('clear')}</button>
+      </div></div>` : ''}
     <button class="btn btn-primary btn-lg btn-block" id="send" ${tip('h_send')}>${t('send_visit')}</button>`;
   screen.querySelectorAll('[data-o]').forEach(b => b.onclick = () => { flow.outcome = b.dataset.o; flow.note = $('#note').value; render(); });
+  if (s.bioSig) signaturePad($('#sig'));
   $('#send').onclick = async () => {
     if (!flow.outcome) return toast(t('choose_outcome'));
-    const res = await S.submitVisit(user, v.id, { outcome: flow.outcome, note: $('#note').value });
+    if (s.bioSig && !flow.sig?.length) { $('#sig').scrollIntoView({ block: 'center' }); return toast(t('sig_required')); }
+    const touch = flow.touch?.features() || null;
+    flow.touch?.stop();
+    const res = await S.submitVisit(user, v.id, { outcome: flow.outcome, note: $('#note').value, signature: flow.sig || null, touch });
     for (const k in flow) delete flow[k]; // zdjęcia znikają z pamięci aplikacji po wysłaniu
     go({ name: 'result', visitId: res.id });
   };
+}
+
+// Podpis palcem: kreski [{x, y, t}] w układzie płótna; zachowane w flow.sig między przerysowaniami
+function signaturePad(c) {
+  const dpr = devicePixelRatio || 1;
+  const w = c.clientWidth, h = c.clientHeight;
+  c.width = w * dpr; c.height = h * dpr;
+  const g = c.getContext('2d');
+  g.scale(dpr, dpr);
+  const paint = () => {
+    g.clearRect(0, 0, w, h);
+    g.strokeStyle = getComputedStyle(c).color; g.lineWidth = 2.4; g.lineCap = g.lineJoin = 'round';
+    for (const st of flow.sig || []) { g.beginPath(); st.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.stroke(); }
+  };
+  let drawing = false;
+  const pos = e => { const r = c.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, t: e.timeStamp }; };
+  c.addEventListener('pointerdown', e => {
+    e.preventDefault(); drawing = true; c.setPointerCapture?.(e.pointerId);
+    (flow.sig ??= []).push([pos(e)]);
+    $('.sig-hint')?.classList.add('hidden'); paint();
+  });
+  c.addEventListener('pointermove', e => {
+    if (!drawing) return;
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    flow.sig[flow.sig.length - 1].push(...evs.map(pos)); paint();
+  });
+  const end = () => { drawing = false; };
+  c.addEventListener('pointerup', end); c.addEventListener('pointercancel', end);
+  $('#sigClear').onclick = () => { flow.sig = []; $('.sig-hint')?.classList.remove('hidden'); paint(); };
+  paint();
 }
 
 async function resultScreen() {

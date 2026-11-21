@@ -2,6 +2,7 @@
 import { t, applyDom, onLangChange, fmtDate, fmtTime, fmtDateTime } from '../assets/js/i18n.js';
 import { mountControls, versionLabel, esc, toast, modal, badge, addrLine, download, tip, help } from '../assets/js/ui.js';
 import * as S from '../assets/js/store.js';
+import { sigSvg } from '../assets/js/biometrics.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 let admin = null;
@@ -470,7 +471,7 @@ async function renderVisitBody(el, v) {
   el.innerHTML = `
     <div class="photos">
       ${await box(pb, t('photo_building'), d.streetScore !== undefined ? `${t('addr_match')}: ${d.streetScore}% ${mark(streetOk && d.buildingOk)}` : '', 'h_photo_b')}
-      ${await box(pu, pu?.type === 'door' ? t('photo_door') : t('photo_unit'), p.unit ? `${t('unit_match')}: ${d.unitOk ? t('match_ok') : t('match_bad')} ${mark(d.unitOk)}` : '', 'h_photo_u')}
+      ${await box(pu, pu?.type === 'door' ? t('photo_door') : t('photo_unit'), pu?.type === 'door' ? `<span class="warn">🚪 ${t('r_no_unit_number')}</span>` : p.unit ? `${t('unit_match')}: ${d.unitOk ? t('match_ok') : t('match_bad')} ${mark(d.unitOk)}` : '', 'h_photo_u')}
     </div>
     <div class="checks">
       <span ${tip('h_gps')}>${d.distance !== undefined ? t('gps_from_addr', { n: d.distance }) + ' ' + mark(!(v.reasons || []).some(r => r.code === 'r_gps_far')) : t('r_no_gps') + ' ' + mark(false)}</span>
@@ -478,6 +479,7 @@ async function renderVisitBody(el, v) {
       <span ${tip('h_dup')}>${t('dup_photo')}: ${d.duplicate ? t('yes') : t('no')} ${mark(!d.duplicate)}</span>
       <span ${tip('h_camera')}>${t('in_app_camera')} ${mark(d.cameraOk !== false)}</span>
     </div>
+    ${bioBox(v)}
     ${(v.reasons || []).length ? `<p class="small"><b>${t('reasons')}</b>${help('h_reasons')}<b>:</b> <span class="warn">${v.reasons.map(reasonText).join(' · ')}</span></p>` : ''}`;
   el.querySelectorAll('[data-dl]').forEach(b => b.onclick = async () => {
     const ph = photos.find(x => x.id === b.dataset.dl);
@@ -487,6 +489,28 @@ async function renderVisitBody(el, v) {
     await S.logPhotoDownload(admin, ph);
     toast(t('download_logged'));
   });
+}
+
+// Wyniki biometrii wizyty: stan nauki / wynik / flaga + miniatura podpisu
+function bioBox(v) {
+  const b = v.bio || {};
+  if (!b.pin && !b.sig && !b.touch && !v.signature) return '';
+  const cell = r => {
+    if (!r) return `<span class="muted">${t('bio_off')}</span>`;
+    if (r.state === 'enroll') return `<span class="muted">${t('bio_enroll', { n: r.n, of: r.of })}</span>`;
+    if (r.score == null) return '<span class="muted">—</span>';
+    return r.flag ? `<span class="bad">⚑ ${r.score}× · ${t('bio_flag')}</span>` : `<span class="ok">${r.score}× · ${t('bio_ok')}</span>`;
+  };
+  return `<div class="bio-box">
+    <h3>${t('bio_title')}${help('h_bio_box')}</h3>
+    <div class="bio-grid">
+      <div><div class="muted small">${t('bio_pin')}</div>${cell(b.pin)}</div>
+      <div><div class="muted small">${t('bio_sig')}</div>${cell(b.sig)}</div>
+      <div><div class="muted small">${t('bio_touch')}</div>${cell(b.touch)}</div>
+    </div>
+    ${v.signature ? `<div class="sig-thumb">${sigSvg(v.signature)}</div>` : ''}
+    <p class="muted small">${t('bio_note')}</p>
+  </div>`;
 }
 
 function renderDecision(el, v) {
@@ -543,18 +567,20 @@ async function reps(view) {
   view.innerHTML = `
     <div class="toolbar"><button class="btn btn-primary" id="addRep" ${tip('h_add_rep')}>+ ${t('add_rep')}</button></div>
     <div class="card" style="padding:0"><table>
-      <thead><tr><th>${t('name')}</th><th>${t('email')}</th><th>${t('active')}</th><th>${t('device')}${help('h_device_col')}</th><th>${t('assigned_count')}</th><th></th></tr></thead>
+      <thead><tr><th>${t('name')}</th><th>${t('email')}</th><th>${t('active')}</th><th>${t('device')}${help('h_device_col')}</th><th>${t('assigned_count')}</th><th>${t('bio_profile')}${help('h_bio_col')}</th><th></th></tr></thead>
       <tbody>${list.map(r => `
         <tr>
           <td><b>${esc(r.name)}</b></td><td>${esc(r.email || '')}</td>
           <td>${r.active ? `<span class="ok">● ${t('yes')}</span>` : `<span class="bad">● ${t('no')}</span>`}</td>
           <td>${r.deviceId ? esc(r.deviceId) : `<span class="muted">${t('device_none')}</span>`}</td>
           <td>${asg.filter(a => a.userId === r.id && !S.FINAL.includes(a.status)).length}</td>
+          <td class="small">${(b => `${t('bio_pin')} ${b.pin}/${b.pinOf}<br>${t('bio_sig')} ${b.sig}/${b.sigOf}<br>${t('bio_touch')} ${b.touch}/${b.touchOf}`)(S.bioStatus(r))}</td>
           <td style="text-align:right;white-space:nowrap">
             <button class="btn btn-ghost" data-edit="${r.id}" ${tip('h_edit')}>${t('edit')}</button>
             <button class="btn btn-ghost" data-act="${r.active ? 'deactivate' : 'activate'}" data-id="${r.id}" ${tip('h_activate')}>${t(r.active ? 'deactivate' : 'activate')}</button>
             <button class="btn btn-ghost" data-act="reset_device" data-id="${r.id}" ${tip('h_reset_device')} ${r.deviceId ? '' : 'disabled'}>${t('reset_device')}</button>
             <button class="btn btn-ghost" data-act="remote_logout" data-id="${r.id}" ${tip('h_remote_logout')}>${t('remote_logout')}</button>
+            <button class="btn btn-ghost" data-act="reset_bio" data-id="${r.id}" ${tip('h_reset_bio')} ${r.bio ? '' : 'disabled'}>${t('reset_bio')}</button>
           </td>
         </tr>`).join('')}</tbody></table></div>`;
   $('#addRep').onclick = () => repModal();
@@ -664,6 +690,7 @@ async function reports(view) {
 async function settings(view) {
   $('#pageTitle').textContent = t('settings_title');
   const s = await S.getSettings();
+  const numB = k => `<div class="field"><label>${t('s_' + k)}${help('h_s_' + k)}</label><input type="number" name="${k}" value="${s[k]}" min="0" step="${k.endsWith('Th') ? '0.1' : '1'}"></div>`;
   const num = (k, label) => `<div class="field"><label>${t(label)}${help('h_s_' + k)}</label><input type="number" name="${k}" value="${s[k]}" min="0"></div>`;
   view.innerHTML = `
     <div class="grid-2">
@@ -680,6 +707,12 @@ async function settings(view) {
           ${num('targetPlan', 's_target_plan')}${num('targetAuto', 's_target_auto')}
           ${num('targetRejected', 's_target_rejected')}${num('targetReviewH', 's_target_review')}
         </div>
+        <h3 class="mt">${t('bio_title')}${help('h_bio_section')}</h3>
+        ${['bioPin', 'bioSig', 'bioTouch', 'bioToReview'].map(k => `<label style="display:flex;gap:8px;align-items:center;font-weight:400;margin-bottom:6px"><input type="checkbox" name="${k}" ${s[k] ? 'checked' : ''}> ${t('s_' + k)}${help('h_s_' + k)}</label>`).join('')}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;margin-top:8px">
+          ${numB('bioPinTh')}${numB('bioPinEnroll')}${numB('bioSigTh')}${numB('bioSigEnroll')}${numB('bioTouchTh')}${numB('bioTouchEnroll')}
+        </div>
+        <p class="muted small">${t('bio_note')}</p>
         <h3 class="mt">${t('demo_section')}</h3>
         <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" name="demoGps" ${s.demoGps ? 'checked' : ''}> ${t('s_demo_gps')}${help('h_s_demoGps')}</label>
         <div class="toolbar mt" style="margin-bottom:0"><button class="btn btn-primary">${t('save')}</button></div>
@@ -700,6 +733,8 @@ async function settings(view) {
     const out = {};
     for (const k of ['streetMin', 'gpsMax', 'gpsAcc', 'gapMax', 'dueTol', 'phashMax', 'cameraAge', 'retentionDays', 'targetPlan', 'targetAuto', 'targetRejected', 'targetReviewH']) out[k] = Number(f.get(k));
     out.demoGps = f.get('demoGps') === 'on';
+    for (const k of ['bioPin', 'bioSig', 'bioTouch', 'bioToReview']) out[k] = f.get(k) === 'on';
+    for (const k of ['bioPinTh', 'bioSigTh', 'bioTouchTh', 'bioPinEnroll', 'bioSigEnroll', 'bioTouchEnroll']) out[k] = Math.max(k.endsWith('Th') ? 0.5 : 2, Number(f.get(k)));
     await S.saveSettings(admin, out); toast(t('saved'));
   };
   $('#resetDemo').onclick = async () => { if (confirm(t('reset_confirm'))) { await S.resetDemo(); S.logout('admin'); location.reload(); } };

@@ -95,3 +95,9 @@
   .side { position: static; height: auto; }
   #nav { flex-direction: row; flex-wrap: wrap; }
 }
+
+/* Biometria */
+.bio-box { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.bio-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 13px; }
+.sig-thumb { margin-top: 10px; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; display: inline-block; padding: 4px; }
+.sig-svg { display: block; }
