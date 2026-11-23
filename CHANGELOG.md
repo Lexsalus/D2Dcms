@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1 — 2026-11-23
+
+- Supabase: `supabase/00_reset.sql` (czyszczenie schematu) i `supabase/01_schema.sql` — tabele, RLS, funkcje RPC,
+  weryfikacja wizyty po stronie serwera (czas serwera, te same reguły co w prototypie), audyt z IP, prywatny bucket zdjęć.
+- `assets/js/config.js` z adresem projektu i kluczem publicznym (prototyp nadal działa lokalnie: `BACKEND = 'local'`).
+- Instrukcja: `docs/SUPABASE.md`.
+
 ## 0.5.0 — 2026-11-23
 
 Etap 3:

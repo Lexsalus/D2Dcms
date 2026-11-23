@@ -84,5 +84,6 @@ Schemat: `MAJOR.MINOR.PATCH` — PATCH poprawki, MINOR nowe funkcje, MAJOR zmian
 - [docs/WERYFIKACJA.md](docs/WERYFIKACJA.md) — statusy i reguły automatycznej kontroli
 - [docs/BIOMETRIA.md](docs/BIOMETRIA.md) — rytm PIN-u, podpis, dynamika dotyku
 - [docs/INTEGRACJA.md](docs/INTEGRACJA.md) — webhooki i wymiana JSON z CRM
+- [docs/SUPABASE.md](docs/SUPABASE.md) — uruchomienie bazy, schemat, RLS, funkcje
 - [docs/ANDROID.md](docs/ANDROID.md) — aplikacja Android (Capacitor), ochrona ekranu, OCR
 - [docs/PLAN.md](docs/PLAN.md) — etapy prac
