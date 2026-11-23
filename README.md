@@ -4,7 +4,7 @@ System kontroli wizyt w terenie (windykacja terenowa, D2D): panel administratora
 Handlowiec dostaje listę adresów, na miejscu robi 2 zdjęcia (budynek z numerem, numer lokalu), wybiera wynik rozmowy,
 a system sam sprawdza OCR, GPS, czas i duplikaty. Wizyty wątpliwe trafiają do ręcznej weryfikacji.
 
-> **Status: prototyp 0.3.x** — działa w przeglądarce, dane zapisywane lokalnie (localStorage + IndexedDB).
+> **Status: prototyp 0.4.x** — działa w przeglądarce, dane zapisywane lokalnie (localStorage + IndexedDB).
 > Backend (Supabase) i aplikacja Android (Capacitor) — kolejne etapy, patrz [docs/PLAN.md](docs/PLAN.md).
 
 ## Uruchomienie
@@ -26,18 +26,20 @@ a system sam sprawdza OCR, GPS, czas i duplikaty. Wizyty wątpliwe trafiają do 
 Panel i aplikacja w tej samej przeglądarce współdzielą dane — przypisanie w panelu od razu widać w aplikacji, a wysłana wizyta trafia do panelu.
 *Ustawienia → Przywróć dane demo* wczytuje przykładowy zestaw od nowa.
 
-## Funkcje (0.2)
+## Funkcje (0.4)
 
 **Panel administratora**
-- Pulpit: KPI, realizacja planu wg handlowca, statusy adresów, ostatnie wizyty, mapa (Leaflet/OSM).
-- Nieruchomości: import CSV/XLSX, dodawanie ręczne, geokodowanie (Nominatim), przypisywanie, podział równy, termin.
-- Do weryfikacji: dwa zdjęcia, odczyt OCR, zgodność adresu, GPS, odstęp zdjęć, duplikat; zatwierdź / odrzuć / ponowna wizyta.
+- Pulpit: KPI z filtrami (okres, handlowiec, status), realizacja planu wg handlowca, statusy adresów, ostatnie wizyty, mapa (Leaflet/OSM).
+- Powiadomienia (dzwonek): kolejka powyżej progu, terminy, próby zrzutu ekranu, flagi biometrii; opcjonalnie powiadomienia przeglądarki.
+- Nieruchomości: import CSV/XLSX, dodawanie ręczne, geokodowanie (Nominatim), przypisywanie, podział równy lub wg rejonu, termin.
+- Do weryfikacji: dwa zdjęcia, odczyt OCR, zgodność adresu, GPS, odstęp zdjęć, duplikat; zatwierdź / odrzuć / ponowna wizyta; ZIP zdjęć wizyty.
 - Handlowcy: konta, PIN, aktywacja, powiązanie z jednym urządzeniem, zdalne wylogowanie.
-- Raporty: realizacja planu, auto-weryfikacja, odrzucone, wizyty dziennie, czas na adres, wyniki rozmów, czas decyzji; eksport CSV; dziennik zdarzeń.
-- Ustawienia: progi automatycznej weryfikacji, cele w raportach, tryb demo GPS.
+- Raporty: realizacja planu, auto-weryfikacja, odrzucone, wizyty dziennie, czas na adres, wyniki rozmów, czas decyzji; eksport CSV / XLSX / PDF, ZIP zdjęć z okresu; dziennik zdarzeń.
+- Ustawienia: progi automatycznej weryfikacji, biometria, cele w raportach, sesje i powiadomienia, retencja zdjęć, tryb demo GPS.
 
 **Aplikacja handlowca**
-- Logowanie PIN, lista własnych adresów, nawigacja do adresu.
+- Logowanie PIN (sesja z limitem czasu), lista i mapa własnych adresów, nawigacja do adresu.
+- Wymuszanie aktualnej wersji, działanie offline (service worker, ostatnia pobrana wersja).
 - Wizyta w 2 krokach: zdjęcie budynku → zdjęcie lokalu (lub drzwi „brak numeru”), wstępny odczyt OCR na urządzeniu.
 - Podsumowanie, wynik rozmowy, notatka, wysłanie → natychmiastowy wynik kontroli.
 - Znak wodny (handlowiec + urządzenie + data), zasłona przy przełączaniu aplikacji, blokada kopiowania.

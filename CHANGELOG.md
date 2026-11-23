@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0 — 2026-11-23
+
+- Pulpit: filtr statusu (obok okresu i handlowca).
+- Eksport raportu i dziennika: CSV, XLSX (SheetJS) i PDF (widok do druku → „Zapisz jako PDF”); każdy eksport w audycie.
+- ZIP zdjęć: pojedynczej wizyty i wszystkich wizyt z okresu/handlowca, z plikiem `wizyty.csv`; zapis w audycie.
+- Podział wg rejonu: k-średnie po współrzędnych (bez współrzędnych — kod pocztowy + ulica), jeden rejon na handlowca.
+- Sesje: wylogowanie admina po bezczynności, maks. długość sesji handlowca (ustawienia).
+- Powiadomienia w panelu (dzwonek): kolejka powyżej progu, terminy (zbliżające się i przekroczone), próby zrzutu ekranu,
+  flagi biometrii; opcjonalnie powiadomienia przeglądarki.
+- Retencja: zdjęcia starsze niż ustawiony okres usuwane automatycznie przy wejściu do panelu (z wpisem w audycie).
+- Aplikacja: zakładka Mapa z własnymi adresami w kolorach statusów; wymuszanie aktualnej wersji (blokada do aktualizacji);
+  service worker — aplikacja otwiera się bez internetu (ostatnia pobrana wersja); manifest PWA.
+
 ## 0.3.0 — 2026-11-21
 
 Kolorystyka sekcji i pod-zakładki:

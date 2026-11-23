@@ -6,8 +6,9 @@ import { sigSvg } from '../assets/js/biometrics.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 let admin = null;
+let purged = false;
 const ROUTES = ['dashboard', 'properties', 'review', 'reps', 'reports', 'settings'];
-const state = { period: 'week', rep: '', propFilter: 'all', propSearch: '', selected: new Set(), assignRep: '', reviewSel: null, reviewGroup: 'all', reportTab: 'perf', setTab: 'verify' };
+const state = { period: 'week', rep: '', propFilter: 'all', propSearch: '', selected: new Set(), assignRep: '', reviewSel: null, status: '', reviewGroup: 'all', reportTab: 'perf', setTab: 'verify' };
 
 // Kolor i ikona każdej sekcji — pasek boczny, nagłówek strony i pod-zakładki
 const SECTION = {
@@ -41,6 +42,11 @@ function boot() {
     catch (err) { const el = $('#loginErr'); el.textContent = t(err.message); el.classList.remove('hidden'); }
   };
   $('#logoutBtn').onclick = () => { S.logout('admin'); admin = null; render(); };
+  // aktywność przedłuża sesję; co 30 s sprawdzamy, czy nie wygasła
+  ['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, () => S.touchSession('admin'), true));
+  setInterval(() => { if (admin && !S.currentUser('admin')) render(); else if (admin) paintBell(); }, 30000);
+  $('#bell').onclick = e => { e.stopPropagation(); $('#bellPanel').classList.toggle('hidden'); paintBell(); };
+  document.addEventListener('click', e => { if (!e.target.closest('.bell-wrap')) $('#bellPanel').classList.add('hidden'); });
   render();
 }
 
@@ -54,12 +60,16 @@ async function render() {
   $('#login').classList.toggle('hidden', !!admin);
   $('#shell').classList.toggle('hidden', !admin);
   if (!admin) {
+    $('#expiredMsg').classList.toggle('hidden', !S.sessionExpired.admin);
     $('#demoCreds').textContent = t('demo_creds', { creds: `${S.DEMO_ADMIN.email} / ${S.DEMO_ADMIN.password}` });
     applyDom($('#login'));
     return;
   }
   applyDom();
+  S.sessionExpired.admin = false;
   $('#who').textContent = admin.name;
+  if (!purged) { purged = true; S.purgeOldPhotos(admin).then(n => n && toast(t('retention_done', { n }))); }
+  paintBell();
   const route = currentRoute();
   const assignments = await S.listAssignments();
   const toReview = assignments.filter(a => a.status === 'TO_REVIEW').length;
@@ -71,6 +81,51 @@ async function render() {
   $('#pageIc').textContent = SECTION[route].i;
   const view = $('#view');
   ({ dashboard, properties, review, reps, reports, settings })[route](view);
+}
+
+// ---------- powiadomienia ----------
+function notifText(n) {
+  switch (n.kind) {
+    case 'queue': return t('n_queue', { n: n.n });
+    case 'overdue': return t('n_overdue', { n: n.n });
+    case 'soon': return t('n_soon', { n: n.n, h: n.h });
+    case 'screenshot_attempt': return t('n_screenshot', { who: n.who });
+    case 'bio_pin_flag': return t('n_bio_pin', { who: n.who });
+    default: return t('n_bio', { who: n.who, what: n.obj.split(', ').map(c => t(c).replace(/\s*\(.*\)/, '')).join(', ') });
+  }
+}
+const NOTIF_GO = { queue: '#/review', overdue: '#/properties', soon: '#/properties', screenshot_attempt: '#/reports', bio_flag: '#/review', bio_pin_flag: '#/review' };
+const NOTIF_IC = { queue: '⚑', overdue: '⏰', soon: '⏳', screenshot_attempt: '📵', bio_flag: '🧬', bio_pin_flag: '🧬' };
+async function paintBell() {
+  if (!admin) return;
+  const list = S.notifications(admin);
+  const cnt = $('#bellCount');
+  cnt.textContent = list.length; cnt.classList.toggle('hidden', !list.length);
+  $('#bellPanel').innerHTML = `
+    <div class="section-title"><h3 style="margin:0">${t('notifications')}${help('h_bell')}</h3>
+      ${list.some(n => !n.sticky) ? `<button class="btn btn-ghost small" id="markSeen">${t('mark_read')}</button>` : ''}</div>
+    ${list.map(n => `<a class="notif" href="${NOTIF_GO[n.kind]}" data-kind="${n.kind}"><span class="ni">${NOTIF_IC[n.kind]}</span>
+      <span>${esc(notifText(n))}<br><span class="muted small">${n.sticky ? t('n_now') : fmtDateTime(n.ts)}</span></span></a>`).join('')
+      || `<p class="muted">${t('no_notifications')}</p>`}`;
+  const ms = $('#markSeen');
+  if (ms) ms.onclick = async e => { e.stopPropagation(); await S.markNotifSeen(admin); admin = S.currentUser('admin'); paintBell(); };
+  $('#bellPanel').querySelectorAll('.notif').forEach(a => a.onclick = () => {
+    if (a.dataset.kind === 'overdue' || a.dataset.kind === 'soon') state.propFilter = 'assigned';
+    if (a.dataset.kind === 'screenshot_attempt') state.reportTab = 'audit';
+    $('#bellPanel').classList.add('hidden');
+  });
+  // powiadomienia przeglądarki (gdy panel jest otwarty)
+  const s = await S.getSettings();
+  if (s.notifyBrowser && 'Notification' in window && Notification.permission === 'granted') {
+    const last = +(localStorage.getItem('fc.notified') || 0);
+    const fresh = list.filter(n => !n.sticky && n.ts > last);
+    const q = list.find(n => n.kind === 'queue');
+    const lastQ = +(localStorage.getItem('fc.notifiedQueue') || 0);
+    for (const n of fresh.slice(0, 3)) new Notification('FieldCheck', { body: notifText(n), tag: n.id });
+    if (q && q.n > lastQ) new Notification('FieldCheck', { body: notifText(q), tag: 'queue' });
+    localStorage.setItem('fc.notifiedQueue', q ? q.n : 0);
+    if (fresh.length) localStorage.setItem('fc.notified', Math.max(...fresh.map(n => n.ts)));
+  }
 }
 
 // ---------- pomocnicze ----------
@@ -95,18 +150,24 @@ async function data() {
   return { props, asg, visits, reps, latest };
 }
 
-function filters(withPeriod = true) {
+const STATUS_FILTER = ['todo', 'AUTO_VERIFIED', 'APPROVED', 'TO_REVIEW', 'REJECTED'];
+const statusMatch = a => !state.status || (state.status === 'todo' ? ['ASSIGNED', 'IN_PROGRESS'].includes(a.status) : a.status === state.status);
+function filters(withPeriod = true, withStatus = false) {
   return `
     ${withPeriod ? `<select id="fPeriod" ${tip('h_period')}>
       ${['week', 'month', 'all'].map(p => `<option value="${p}" ${state.period === p ? 'selected' : ''}>${t('period_' + p)}</option>`).join('')}
     </select>` : ''}
-    <select id="fRep" ${tip('h_rep_filter')}><option value="">${t('all_reps')}</option></select>`;
+    <select id="fRep" ${tip('h_rep_filter')}><option value="">${t('all_reps')}</option></select>
+    ${withStatus ? `<select id="fStatus" ${tip('h_status_filter')}><option value="">${t('all_statuses')}</option>
+      ${STATUS_FILTER.map(x => `<option value="${x}" ${state.status === x ? 'selected' : ''}>${x === 'todo' ? t('todo') : t('st_' + x)}</option>`).join('')}</select>` : ''}`;
 }
 async function wireFilters(root) {
   const reps = await S.listReps();
   const sel = $('#fRep', root);
   sel.innerHTML += reps.map(r => `<option value="${r.id}" ${state.rep === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('');
   sel.onchange = () => { state.rep = sel.value; render(); };
+  const st = $('#fStatus', root);
+  if (st) st.onchange = () => { state.status = st.value; render(); };
   const per = $('#fPeriod', root);
   if (per) per.onchange = () => { state.period = per.value; render(); };
 }
@@ -116,7 +177,7 @@ async function dashboard(view) {
   $('#pageTitle').textContent = `${t('dash_title')} — ${t('period_' + state.period).toLowerCase()}`;
   const { asg, reps, latest } = await data();
   const from = periodStart(state.period);
-  const A = asg.filter(a => !state.rep || a.userId === state.rep);
+  const A = asg.filter(a => (!state.rep || a.userId === state.rep) && statusMatch(a));
   const V = A.map(a => latest.get(a.id)).filter(v => v && v.submittedAt && v.submittedAt >= from);
   const submitted = V.length;
   const auto = V.filter(v => v.status === 'AUTO_VERIFIED').length;
@@ -144,7 +205,7 @@ async function dashboard(view) {
     .sort((x, y) => y.v.submittedAt - x.v.submittedAt).slice(0, 8);
 
   view.innerHTML = `
-    <div class="toolbar">${filters()}</div>
+    <div class="toolbar">${filters(true, true)}</div>
     <div class="kpis">
       <div class="card kpi"><div class="label">${t('kpi_assigned')}${help('h_kpi_assigned')}</div><div class="val">${A.length}</div><div class="sub">${t('kpi_reps', { n: activeReps.length })}</div></div>
       <div class="card kpi"><div class="label">${t('kpi_submitted')}${help('h_kpi_submitted')}</div><div class="val">${submitted}</div><div class="sub">${t('kpi_plan', { n: pct(submitted, A.length) })}</div></div>
@@ -287,6 +348,7 @@ async function properties(view) {
           <div><label>${t('due_date')}${help('h_due')}</label><input type="date" id="dueDate" value="${defDue}" style="width:100%"></div>
           <button class="btn btn-primary" id="assignBtn" ${tip('h_assign')}>${t('assign_btn', { n: state.selected.size })}</button>
           <button class="btn" id="splitBtn" ${tip('h_split')}>${t('split_even')}</button>
+          <button class="btn" id="regionBtn" ${tip('h_split_region')}>⌖ ${t('split_region')}</button>
           <button class="btn btn-ghost" id="unassignBtn" ${tip('h_unassign')}>${t('unassign')}</button>
         </div>
       </div>
@@ -314,6 +376,11 @@ async function properties(view) {
     if (!state.selected.size) return toast(t('select_props_first'));
     const r = await S.splitEvenly(admin, [...state.selected], activeReps.map(x => x.id), due());
     state.selected.clear(); toast(t('assigned_ok', { n: r.n }) + (r.blocked ? ' · ' + t('cant_reassign') : '')); render();
+  };
+  $('#regionBtn').onclick = async () => {
+    if (!state.selected.size) return toast(t('select_props_first'));
+    const r = await S.splitByRegion(admin, [...state.selected], activeReps.map(x => x.id), due());
+    state.selected.clear(); toast(t('region_ok', { n: r.n, g: r.groups }) + (r.blocked ? ' · ' + t('cant_reassign') : '')); render();
   };
   $('#unassignBtn').onclick = async () => {
     if (!state.selected.size) return toast(t('select_props_first'));
@@ -509,8 +576,10 @@ async function renderVisitBody(el, v) {
       <span ${tip('h_dup')}>${t('dup_photo')}: ${d.duplicate ? t('yes') : t('no')} ${mark(!d.duplicate)}</span>
       <span ${tip('h_camera')}>${t('in_app_camera')} ${mark(d.cameraOk !== false)}</span>
     </div>
+    <div class="toolbar" style="margin:10px 0 0"><button class="btn btn-ghost" data-zip="${v.id}" ${tip('h_zip_visit')}>🗂 ${t('zip_visit')}</button></div>
     ${bioBox(v)}
     ${(v.reasons || []).length ? `<p class="small"><b>${t('reasons')}</b>${help('h_reasons')}<b>:</b> ${v.reasons.map(r => `<span class="chip" style="--c:${GROUPS[groupOf(r.code)].c}">${esc(reasonText(r))}</span>`).join(' ')}</p>` : ''}`;
+  el.querySelector('[data-zip]').onclick = () => zipPhotos([v], `${p.street}_${p.building}`.replace(/\s+/g, '_'));
   el.querySelectorAll('[data-dl]').forEach(b => b.onclick = async () => {
     const ph = photos.find(x => x.id === b.dataset.dl);
     const url = await S.photoUrl(ph);
@@ -670,7 +739,7 @@ async function reports(view) {
       { id: 'out', label: t('rep_outcomes'), color: '#0891B2', tip: t('h_outcomes') },
       { id: 'audit', label: t('audit_log'), count: audit.length, color: '#64748B', tip: t('h_audit') },
     ], state.reportTab)}
-    <div class="toolbar">${filters()}<span class="spacer"></span><button class="btn" id="expCsv" ${tip('h_export')}>⬇ ${t('export_csv')}</button></div>
+    <div class="toolbar">${filters()}<span class="spacer"></span><button class="btn" id="zipPeriod" ${tip('h_zip_period')}>🗂 ${t('zip_period')}</button>${expButtons('expRep')}</div>
     <div class="card ${state.reportTab === 'perf' ? '' : 'hidden'}" data-sec="perf" style="padding:0;overflow:auto">
       <table>
         <thead><tr>
@@ -702,7 +771,7 @@ async function reports(view) {
     </div>
 
     <div class="card ${state.reportTab === 'audit' ? '' : 'hidden'}" data-sec="audit">
-      <div class="section-title"><h3 style="margin:0">${t('audit_log')}${help('h_audit')}</h3><button class="btn btn-ghost" id="expAudit" ${tip('h_export')}>⬇ CSV</button></div>
+      <div class="section-title"><h3 style="margin:0">${t('audit_log')}${help('h_audit')}</h3>${expButtons('expAudit')}</div>
       <div class="table-wrap" style="max-height:calc(100vh - 260px)">
       <table><thead><tr><th>${t('audit_when')}</th><th>${t('audit_who')}</th><th>${t('audit_action')}</th><th>${t('audit_object')}</th></tr></thead>
       <tbody>${audit.slice(0, 300).map(a => `<tr><td>${fmtDateTime(a.ts)}</td><td>${esc(repName(a.userId))}</td><td><code>${esc(a.action)}</code></td><td>${esc(a.object)}</td></tr>`).join('')}</tbody></table>
@@ -710,16 +779,82 @@ async function reports(view) {
     </div>`;
   await wireFilters(view);
   wireSubtabs(view, id => { state.reportTab = id; render(); });
-  const csv = (head, data) => '﻿' + [head, ...data].map(r => r.map(x => `"${String(x ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
-  $('#expCsv').onclick = async () => {
-    download(`fieldcheck_raport_${new Date().toISOString().slice(0, 10)}.csv`, csv(
-      [t('col_rep'), t('kpi_assigned'), t('kpi_submitted'), t('rep_plan'), t('rep_auto'), t('rep_rejected'), t('rep_per_day'), t('rep_time_per'), ...S.OUTCOMES.map(o => t('out_' + o)), t('rep_review_time')],
-      rows.map(r => [r.name, r.assigned, r.submitted, r.plan + '%', r.auto + '%', r.rejected + '%', r.perDay, r.timePer ?? '', ...S.OUTCOMES.map(o => r.out[o]), r.reviewH ?? ''])), 'text/csv');
-    await S.logEvent(admin, 'export', 'raport CSV');
-  };
-  $('#expAudit').onclick = () => S.logEvent(admin, 'export', 'audyt CSV').then(() => download('fieldcheck_audyt.csv', csv(
-    [t('audit_when'), t('audit_who'), t('audit_action'), t('audit_object')],
-    audit.map(a => [new Date(a.ts).toISOString(), repName(a.userId), a.action, a.object])), 'text/csv'));
+  wireExport('expRep', 'raport', t('reports_title'), () => ({
+    head: [t('col_rep'), t('kpi_assigned'), t('kpi_submitted'), t('rep_plan'), t('rep_auto'), t('rep_rejected'), t('rep_per_day'), t('rep_time_per'), ...S.OUTCOMES.map(o => t('out_' + o)), t('rep_review_time')],
+    rows: rows.map(r => [r.name, r.assigned, r.submitted, r.plan + '%', r.auto + '%', r.rejected + '%', r.perDay, r.timePer ?? '', ...S.OUTCOMES.map(o => r.out[o]), r.reviewH ?? '']),
+  }));
+  wireExport('expAudit', 'audyt', t('audit_log'), () => ({
+    head: [t('audit_when'), t('audit_who'), t('audit_action'), t('audit_object')],
+    rows: audit.map(a => [fmtDateTime(a.ts), repName(a.userId), a.action, a.object]),
+  }));
+  $('#zipPeriod').onclick = () => zipPhotos(
+    asg.filter(a => !state.rep || a.userId === state.rep).map(a => latest.get(a.id)).filter(v => v?.submittedAt && v.submittedAt >= from),
+    state.period);
+}
+
+// ---------- eksport CSV / XLSX / PDF i ZIP zdjęć ----------
+const expButtons = id => `<span class="exp" id="${id}" ${tip('h_export')}>⬇ <button type="button" data-fmt="csv">CSV</button><button type="button" data-fmt="xlsx">XLSX</button><button type="button" data-fmt="pdf">PDF</button></span>`;
+function wireExport(id, name, title, getData) {
+  document.getElementById(id)?.querySelectorAll('[data-fmt]').forEach(b => b.onclick = async () => {
+    const { head, rows } = getData();
+    await exportTable(name, title, head, rows, b.dataset.fmt);
+  });
+}
+async function exportTable(name, title, head, rows, fmt) {
+  const file = `fieldcheck_${name}_${new Date().toISOString().slice(0, 10)}`;
+  if (fmt === 'csv') {
+    download(file + '.csv', '\uFEFF' + [head, ...rows].map(r => r.map(x => `"${String(x ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n'), 'text/csv');
+  } else if (fmt === 'xlsx') {
+    const X = await loadXLSX();
+    const ws = X.utils.aoa_to_sheet([head, ...rows]);
+    ws['!cols'] = head.map((h, i) => ({ wch: Math.min(40, Math.max(String(h).length, ...rows.map(r => String(r[i] ?? '').length)) + 2) }));
+    const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, ws, title.slice(0, 31));
+    X.writeFile(wb, file + '.xlsx');
+  } else {
+    // PDF: widok do druku — w oknie drukowania wybierz „Zapisz jako PDF”
+    const w = window.open('', '_blank');
+    if (!w) return toast(t('popup_blocked'));
+    w.document.write(`<!DOCTYPE html><html lang="${document.documentElement.lang}"><head><meta charset="utf-8"><title>${esc(file)}</title>
+      <style>body{font:12px Inter,Arial,sans-serif;color:#0F172A;margin:24px}h1{font-size:18px;margin:0 0 4px}p{color:#64748B;margin:0 0 14px}
+      table{border-collapse:collapse;width:100%}th,td{border:1px solid #CBD5E1;padding:5px 7px;text-align:left}th{background:#12263F;color:#fff}
+      tr:nth-child(even) td{background:#F3F5F9}@page{size:A4 landscape;margin:12mm}</style></head><body>
+      <h1>FieldCheck — ${esc(title)}</h1><p>${esc(fmtDateTime(Date.now()))} · ${esc(versionLabel())}</p>
+      <table><thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>
+      <script>onload=()=>setTimeout(()=>print(),300)<\/script></body></html>`);
+    w.document.close();
+  }
+  await S.logEvent(admin, 'export', `${name} ${fmt.toUpperCase()}`);
+}
+
+async function loadJSZip() {
+  if (window.JSZip) return window.JSZip;
+  await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+  return window.JSZip;
+}
+// ZIP zdjęć wybranych wizyt + plik wizyty.csv z opisem; zapis w audycie
+async function zipPhotos(visits, name) {
+  if (!visits.length) return toast(t('no_data'));
+  let Z;
+  try { Z = await loadJSZip(); } catch { return toast(t('lib_failed')); }
+  const zip = new Z();
+  const safe = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ł/g, 'l').replace(/Ł/g, 'L').replace(/[^\w.-]+/g, '_');
+  const manifest = [['plik', t('col_address'), t('col_rep'), t('visit'), t('col_status'), t('outcome'), 'OCR', 'GPS m']];
+  let n = 0;
+  for (const v of visits) {
+    const p = S.getProperty(v.propertyId);
+    for (const ph of S.visitPhotos(v.id)) {
+      const url = await S.photoUrl(ph); if (!url) continue;
+      const fname = `${safe(p.street)}_${safe(p.building)}${p.unit ? '-' + safe(p.unit) : ''}_${safe(repName(v.userId))}_${ph.type}.jpg`;
+      zip.file(fname, url.split(',')[1], { base64: true });
+      manifest.push([fname, addrLine(p), repName(v.userId), new Date(v.submittedAt).toISOString(), t('st_' + v.status), v.outcome ? t('out_' + v.outcome) : '', ph.ocrText || '', v.details?.distance ?? '']);
+      n++;
+    }
+  }
+  zip.file('wizyty.csv', '\uFEFF' + manifest.map(r => r.map(x => `"${String(x).replace(/"/g, '""')}"`).join(';')).join('\r\n'));
+  download(`fieldcheck_zdjecia_${name}_${new Date().toISOString().slice(0, 10)}.zip`, await zip.generateAsync({ type: 'blob' }));
+  await S.logEvent(admin, 'photo_zip', `${name}: ${n} zdjęć / ${visits.length} wizyt`);
+  toast(t('download_logged'));
 }
 
 // ---------- USTAWIENIA ----------
@@ -729,13 +864,14 @@ async function settings(view) {
   const numB = k => `<div class="field"><label>${t('s_' + k)}${help('h_s_' + k)}</label><input type="number" name="${k}" value="${s[k]}" min="0" step="${k.endsWith('Th') ? '0.1' : '1'}"></div>`;
   const num = (k, label) => `<div class="field"><label>${t(label)}${help('h_s_' + k)}</label><input type="number" name="${k}" value="${s[k]}" min="0"></div>`;
   const sec = (id, html) => `<div data-sec="${id}" class="${state.setTab === id ? '' : 'hidden'}">${html}</div>`;
-  const chk = k => `<label style="display:flex;gap:8px;align-items:center;font-weight:400;margin-bottom:6px"><input type="checkbox" name="${k}" ${s[k] ? 'checked' : ''}> ${t(k === 'demoGps' ? 's_demo_gps' : 's_' + k)}${help('h_s_' + k)}</label>`;
+  const chk = k => `<label style="display:flex;gap:8px;align-items:center;font-weight:400;margin:8px 0 6px"><input type="checkbox" name="${k}" ${s[k] ? 'checked' : ''}> ${t(k === 'demoGps' ? 's_demo_gps' : 's_' + k)}${help('h_s_' + k)}</label>`;
   const grid = html => `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">${html}</div>`;
   view.innerHTML = `
     ${subtabs([
       { id: 'verify', label: t('thresholds'), color: '#F59E0B', tip: t('h_st_verify') },
       { id: 'bio', label: t('bio_title'), color: '#7C3AED', tip: t('h_bio_section') },
       { id: 'targets', label: t('targets'), color: '#DB2777', tip: t('h_targets') },
+      { id: 'notify', label: t('st_notify'), color: '#0891B2', tip: t('h_st_notify') },
       { id: 'demo', label: t('demo_section'), color: '#64748B', tip: t('h_st_demo') },
     ], state.setTab)}
     <div class="grid-2">
@@ -752,6 +888,10 @@ async function settings(view) {
         ${sec('targets', `<h3>${t('targets')}${help('h_targets')}</h3>${grid(`
           ${num('targetPlan', 's_target_plan')}${num('targetAuto', 's_target_auto')}
           ${num('targetRejected', 's_target_rejected')}${num('targetReviewH', 's_target_review')}`)}`)}
+        ${sec('notify', `<h3>${t('st_notify')}</h3>${grid(`
+          ${num('sessionMin', 's_sessionMin')}${num('repSessionH', 's_repSessionH')}
+          ${num('notifyQueue', 's_notifyQueue')}${num('notifyDueH', 's_notifyDueH')}`)}
+          ${chk('notifyBrowser')}`)}
         ${sec('demo', `<h3>${t('demo_section')}</h3>${chk('demoGps')}`)}
         <div class="toolbar mt" style="margin-bottom:0"><button class="btn btn-primary">${t('save')}</button></div>
       </form>
@@ -776,6 +916,9 @@ async function settings(view) {
     const out = {};
     for (const k of ['streetMin', 'gpsMax', 'gpsAcc', 'gapMax', 'dueTol', 'phashMax', 'cameraAge', 'retentionDays', 'targetPlan', 'targetAuto', 'targetRejected', 'targetReviewH']) out[k] = Number(f.get(k));
     out.demoGps = f.get('demoGps') === 'on';
+    for (const k of ['sessionMin', 'repSessionH', 'notifyQueue', 'notifyDueH']) out[k] = Math.max(1, Number(f.get(k)));
+    out.notifyBrowser = f.get('notifyBrowser') === 'on';
+    if (out.notifyBrowser && 'Notification' in window && Notification.permission === 'default') await Notification.requestPermission();
     for (const k of ['bioPin', 'bioSig', 'bioTouch', 'bioToReview']) out[k] = f.get(k) === 'on';
     for (const k of ['bioPinTh', 'bioSigTh', 'bioTouchTh', 'bioPinEnroll', 'bioSigEnroll', 'bioTouchEnroll']) out[k] = Math.max(k.endsWith('Th') ? 0.5 : 2, Number(f.get(k)));
     await S.saveSettings(admin, out); toast(t('saved'));

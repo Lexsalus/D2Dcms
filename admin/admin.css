@@ -121,3 +121,19 @@
   background: color-mix(in srgb, var(--c) 14%, transparent); color: color-mix(in srgb, var(--c) 85%, var(--text));
   border: 1px solid color-mix(in srgb, var(--c) 30%, transparent);
 }
+
+/* Eksport */
+.exp { display: inline-flex; align-items: center; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); padding-left: 10px; color: var(--muted); }
+.exp button { border: 0; border-left: 1px solid var(--border); background: none; color: var(--text); font: inherit; font-weight: 500; padding: 8px 11px; cursor: pointer; margin-left: 8px; }
+.exp button + button { margin-left: 0; }
+.exp button:hover { background: var(--surface-2); color: var(--blue); }
+
+/* Powiadomienia */
+.bell-wrap { position: relative; }
+.bell { position: relative; padding: 8px 11px; }
+.bell-count { position: absolute; top: -4px; right: -4px; background: var(--red); color: #fff; border-radius: 999px; font-size: 11px; font-weight: 700; padding: 1px 6px; }
+.bell-panel { position: absolute; right: 0; top: calc(100% + 8px); width: 340px; z-index: 800; max-height: 70vh; overflow: auto; }
+.notif { display: flex; gap: 10px; padding: 9px 6px; border-radius: 8px; color: var(--text); text-decoration: none; border-bottom: 1px solid var(--border); }
+.notif:last-child { border-bottom: 0; }
+.notif:hover { background: var(--surface-2); }
+.notif .ni { font-size: 18px; width: 24px; text-align: center; }

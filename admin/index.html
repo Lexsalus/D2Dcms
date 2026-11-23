@@ -22,6 +22,7 @@
       <div class="field"><label data-i18n="email"></label><input name="email" type="email" required autocomplete="username"></div>
       <div class="field"><label data-i18n="password"></label><input name="password" type="password" required autocomplete="current-password"></div>
       <p class="bad small hidden" id="loginErr"></p>
+      <p class="warn small hidden" id="expiredMsg" data-i18n="session_expired"></p>
       <button class="btn btn-primary btn-block" data-i18n="login"></button>
       <p class="muted small" id="demoCreds"></p>
       <p class="muted small"><span data-i18n="prototype_note"></span> · <span class="version-text"></span></p>
@@ -42,6 +43,10 @@
       <header class="top">
         <h1 class="page-h"><i id="pageIc" class="page-ic"></i><span id="pageTitle"></span></h1>
         <div class="top-right">
+          <div class="bell-wrap">
+            <button class="btn btn-ghost bell" id="bell" data-i18n-tip="h_bell">🔔<span class="bell-count hidden" id="bellCount"></span></button>
+            <div class="bell-panel card hidden" id="bellPanel"></div>
+          </div>
           <span id="who" class="muted"></span>
           <button class="btn btn-ghost" id="logoutBtn" data-i18n="logout" data-i18n-tip="h_logout"></button>
         </div>

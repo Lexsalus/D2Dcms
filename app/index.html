@@ -7,6 +7,8 @@
   <title>FieldCheck — aplikacja handlowca</title>
   <link rel="stylesheet" href="../assets/css/base.css">
   <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="manifest" href="manifest.webmanifest">
   <script>document.documentElement.dataset.theme = localStorage.getItem('fc.theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');</script>
 </head>
 <body>
@@ -18,9 +20,11 @@
     <main id="screen"></main>
     <nav class="tabs hidden" id="tabs">
       <button data-tab="list"><span>☰</span><small data-i18n="tab_list"></small></button>
+      <button data-tab="map"><span>⌖</span><small data-i18n="tab_map"></small></button>
       <button data-tab="profile"><span>◉</span><small data-i18n="tab_profile"></small></button>
     </nav>
     <div id="watermark" class="watermark hidden"></div>
+    <div id="update" class="shield hidden"><div>⟳</div><p id="updateMsg"></p><button class="btn btn-primary btn-lg" id="updateBtn" data-i18n="update_now"></button></div>
     <div id="shield" class="shield hidden"><div>🔒</div><p data-i18n="protected_content"></p></div>
   </div>
   <input type="file" id="cam" accept="image/*" capture="environment" hidden>

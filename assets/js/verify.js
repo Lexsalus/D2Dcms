@@ -11,6 +11,12 @@ export const DEFAULT_SETTINGS = {
   cameraAge: 5,       // min — plik zdjęcia starszy niż to = nie z aparatu
   retentionDays: 365,
   demoGps: true,
+  // sesje i powiadomienia
+  sessionMin: 30,     // min bezczynności — wylogowanie admina
+  repSessionH: 12,    // godz. — maks. długość sesji handlowca
+  notifyQueue: 5,     // powiadom, gdy w kolejce ≥ tylu wizyt
+  notifyDueH: 24,     // powiadom o terminach w ciągu tylu godzin
+  notifyBrowser: false,
   // progi kolorowania raportów
   targetPlan: 90,     // % realizacji planu
   targetAuto: 85,     // % auto-weryfikacji

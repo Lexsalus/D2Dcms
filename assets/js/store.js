@@ -77,7 +77,7 @@ export const DEMO_PIN = '1234';
 export async function loginAdmin(email, password) {
   const u = db.users.find(x => x.role === 'admin' && x.email.toLowerCase() === email.trim().toLowerCase());
   if (!u || u.password !== password) throw new Error('bad_login');
-  localStorage.setItem(SESSION_KEY.admin, JSON.stringify({ userId: u.id, sv: u.sv || 0 }));
+  localStorage.setItem(SESSION_KEY.admin, JSON.stringify({ userId: u.id, sv: u.sv || 0, start: Date.now(), seen: Date.now() }));
   audit(u.id, 'login', 'panel'); save();
   return u;
 }
@@ -89,7 +89,7 @@ export async function loginRep(userId, pin, pinTimes = []) {
   if (u.deviceId && u.deviceId !== dev) throw new Error('device_bound');
   u.deviceId = dev;
   const pinBio = pinCheck(u, pinTimes);
-  localStorage.setItem(SESSION_KEY.rep, JSON.stringify({ userId: u.id, sv: u.sv || 0, pinBio }));
+  localStorage.setItem(SESSION_KEY.rep, JSON.stringify({ userId: u.id, sv: u.sv || 0, pinBio, start: Date.now(), seen: Date.now() }));
   audit(u.id, 'login', 'app ' + dev);
   if (pinBio?.flag) audit(u.id, 'bio_pin_flag', `score ${pinBio.score}`);
   save();
@@ -100,8 +100,22 @@ export function currentUser(kind) {
     const s = JSON.parse(localStorage.getItem(SESSION_KEY[kind]));
     const u = s && db.users.find(x => x.id === s.userId);
     if (!u || (u.sv || 0) !== s.sv || (kind === 'rep' && !u.active)) return null;
+    // wygasanie: admin po bezczynności, handlowiec po maks. długości sesji
+    const now = Date.now();
+    const expired = kind === 'admin'
+      ? now - (s.seen || s.start || 0) > db.settings.sessionMin * 60000
+      : now - (s.start || 0) > db.settings.repSessionH * 3600000;
+    if (expired) { localStorage.removeItem(SESSION_KEY[kind]); sessionExpired[kind] = true; return null; }
     return u;
   } catch { return null; }
+}
+export const sessionExpired = { admin: false, rep: false };
+// aktywność użytkownika przedłuża sesję admina (zapis co najwyżej raz na 20 s)
+export function touchSession(kind) {
+  try {
+    const s = JSON.parse(localStorage.getItem(SESSION_KEY[kind]));
+    if (s && Date.now() - (s.seen || 0) > 20000) { s.seen = Date.now(); localStorage.setItem(SESSION_KEY[kind], JSON.stringify(s)); }
+  } catch { /* brak sesji */ }
 }
 export function sessionBio() {
   try { return JSON.parse(localStorage.getItem(SESSION_KEY.rep))?.pinBio || null; } catch { return null; }
@@ -248,6 +262,57 @@ export async function splitEvenly(admin, propertyIds, userIds, due) {
   }
   return { n, blocked };
 }
+// Podział wg rejonu: adresy blisko siebie trafiają do tego samego handlowca.
+// Ze współrzędnymi — k-średnie (k = liczba handlowców), bez — grupy wg kodu pocztowego i ulicy.
+// Rejony (największe najpierw) dostaje handlowiec z najmniejszym obciążeniem.
+export function regions(propertyIds, k) {
+  const P = propertyIds.map(getProperty).filter(Boolean);
+  const geo = P.filter(p => p.lat != null), noGeo = P.filter(p => p.lat == null);
+  const groups = [];
+  if (geo.length) {
+    k = Math.max(1, Math.min(k, geo.length));
+    const pt = p => [p.lat, p.lng * Math.cos(p.lat * Math.PI / 180)];
+    const X = geo.map(pt);
+    const d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2;
+    // start: najdalsze punkty (deterministycznie)
+    const C = [X[0]];
+    while (C.length < k) {
+      let best = 0, bd = -1;
+      X.forEach((x, i) => { const d = Math.min(...C.map(c => d2(x, c))); if (d > bd) { bd = d; best = i; } });
+      C.push(X[best]);
+    }
+    let lab = [];
+    for (let it = 0; it < 25; it++) {
+      lab = X.map(x => C.map(c => d2(x, c)).reduce((bi, d, i, arr) => d < arr[bi] ? i : bi, 0));
+      for (let c = 0; c < k; c++) {
+        const m = X.filter((_, i) => lab[i] === c);
+        if (m.length) C[c] = [m.reduce((s, x) => s + x[0], 0) / m.length, m.reduce((s, x) => s + x[1], 0) / m.length];
+      }
+    }
+    for (let c = 0; c < k; c++) { const g = geo.filter((_, i) => lab[i] === c); if (g.length) groups.push(g); }
+  }
+  const byKey = {};
+  for (const p of noGeo) (byKey[`${p.zip}|${p.street}`.toLowerCase()] ??= []).push(p);
+  groups.push(...Object.values(byKey));
+  return groups.map(g => g.map(p => p.id));
+}
+export async function splitByRegion(admin, propertyIds, userIds, due) {
+  const load = Object.fromEntries(userIds.map(id => [id, db.assignments.filter(a => a.userId === id && !FINAL.includes(a.status)).length]));
+  const groups = regions(propertyIds, userIds.length).sort((a, b) => b.length - a.length);
+  let n = 0, blocked = 0;
+  const used = new Set();
+  for (const g of groups) {
+    // jeden rejon na handlowca (dopóki starczy handlowców), najpierw najmniej obciążony
+    const free = userIds.filter(id => !used.has(id));
+    const u = (free.length ? free : userIds).slice().sort((a, b) => load[a] - load[b])[0];
+    used.add(u);
+    const r = await assign(admin, g, u, due);
+    n += r.n; blocked += r.blocked; load[u] += r.n;
+  }
+  audit(admin.id, 'assign_region', `${groups.length} rejonów`); save();
+  return { n, blocked, groups: groups.length };
+}
+
 export async function unassign(admin, propertyIds) {
   const before = db.assignments.length;
   db.assignments = db.assignments.filter(a => !(propertyIds.includes(a.propertyId) && ['ASSIGNED', 'IN_PROGRESS'].includes(a.status)));
@@ -326,6 +391,7 @@ export async function decide(admin, visitId, decision, reason) {
 
 // ---------- zdjęcia ----------
 export async function photoUrl(photo) {
+  if (photo.purged) return null;
   if (photo.synthetic) return syntheticPhoto(photo.label, photo.type);
   return (await idbGet(photo.id)) || null;
 }
@@ -362,6 +428,41 @@ function syntheticPhoto(label, type) {
   const url = c.toDataURL('image/jpeg', .8);
   synthCache.set(key, url);
   return url;
+}
+
+// ---------- powiadomienia (w panelu; e-mail/push po stronie serwera w kolejnym etapie) ----------
+export function notifications(admin) {
+  const s = db.settings, now = Date.now(), out = [];
+  const queue = db.assignments.filter(a => a.status === 'TO_REVIEW').length;
+  if (queue >= s.notifyQueue) out.push({ id: 'queue', kind: 'queue', n: queue, ts: now, sticky: true });
+  const open = db.assignments.filter(a => ['ASSIGNED', 'IN_PROGRESS'].includes(a.status) && a.due);
+  const end = a => new Date(a.due + 'T23:59:59').getTime();
+  const overdue = open.filter(a => end(a) < now).length;
+  const soon = open.filter(a => end(a) >= now && end(a) - now <= s.notifyDueH * 3600000).length;
+  if (overdue) out.push({ id: 'overdue', kind: 'overdue', n: overdue, ts: now, sticky: true });
+  if (soon) out.push({ id: 'soon', kind: 'soon', n: soon, h: s.notifyDueH, ts: now, sticky: true });
+  const seen = admin.notifSeen || 0;
+  for (const e of db.audit) {
+    if (e.ts <= seen) break; // audit posortowany od najnowszych
+    if (['screenshot_attempt', 'bio_flag', 'bio_pin_flag'].includes(e.action))
+      out.push({ id: e.id, kind: e.action, who: getUser(e.userId)?.name || '—', obj: e.object, ts: e.ts });
+  }
+  return out;
+}
+export async function markNotifSeen(admin) {
+  const u = db.users.find(x => x.id === admin.id); u.notifSeen = Date.now(); save();
+}
+
+// Retencja: zdjęcia starsze niż retentionDays są usuwane (zostaje opis wizyty i wynik kontroli)
+export async function purgeOldPhotos(admin) {
+  const limit = Date.now() - db.settings.retentionDays * 864e5;
+  const old = db.photos.filter(p => !p.purged && p.takenAt < limit);
+  if (!old.length) return 0;
+  const idbDb = await idb();
+  await new Promise(res => { const tx = idbDb.transaction('photos', 'readwrite'); old.forEach(p => tx.objectStore('photos').delete(p.id)); tx.oncomplete = res; tx.onerror = res; });
+  old.forEach(p => { p.purged = true; p.synthetic = false; });
+  audit(admin.id, 'retention_purge', `${old.length} zdjęć > ${db.settings.retentionDays} dni`); save();
+  return old.length;
 }
 
 // ---------- reset / seed ----------

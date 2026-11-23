@@ -3,6 +3,7 @@ import { t, applyDom, onLangChange, fmtDate, fmtTime, fmtDateTime } from '../ass
 import { mountControls, versionLabel, esc, toast, badge, addrLine, tip, help, subtabs, wireSubtabs } from '../assets/js/ui.js';
 import { bestStreetMatch, hasNumber, haversine, evaluate } from '../assets/js/verify.js';
 import * as S from '../assets/js/store.js';
+import { VERSION } from '../assets/js/version.js';
 import { touchRecorder, sigSvg } from '../assets/js/biometrics.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -21,19 +22,43 @@ function boot() {
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => go({ name: b.dataset.tab }));
   protectContent();
   render();
+  // sesja handlowca wygasa po ustalonym czasie
+  setInterval(() => { if (user && !S.currentUser('rep')) render(); }, 60000);
+  // wymuszanie aktualnej wersji: porównanie z wersją na serwerze
+  checkVersion(); setInterval(checkVersion, 5 * 60000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
+  // tryb offline: service worker trzyma ostatnią wersję aplikacji
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+async function checkVersion() {
+  try {
+    const txt = await (await fetch('../assets/js/version.js?ts=' + Date.now(), { cache: 'no-store' })).text();
+    const remote = (txt.match(/VERSION\s*=\s*'([^']+)'/) || [])[1];
+    if (remote && remote !== VERSION) {
+      $('#updateMsg').textContent = t('update_needed', { v: remote, cur: VERSION });
+      $('#update').classList.remove('hidden');
+      $('#updateBtn').onclick = async () => {
+        const regs = await navigator.serviceWorker?.getRegistrations?.() || [];
+        await Promise.all(regs.map(r => r.update().catch(() => {})));
+        if (window.caches) for (const k of await caches.keys()) await caches.delete(k);
+        location.reload();
+      };
+    }
+  } catch { /* offline — sprawdzimy później */ }
 }
 
 function go(n) { nav = n; window.scrollTo(0, 0); render(); }
 
 async function render() {
   user = S.currentUser('rep');
-  $('#tabs').classList.toggle('hidden', !user || !['list', 'profile'].includes(nav.name));
+  $('#tabs').classList.toggle('hidden', !user || !['list', 'map', 'profile'].includes(nav.name));
   document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === nav.name));
   $('#watermark').classList.toggle('hidden', !user);
   if (user) paintWatermark();
   bar();
   if (!user) return loginScreen();
-  const fn = { list: listScreen, profile: profileScreen, detail: detailScreen, photo: photoScreen, summary: summaryScreen, result: resultScreen }[nav.name];
+  const fn = { list: listScreen, map: mapScreen, profile: profileScreen, detail: detailScreen, photo: photoScreen, summary: summaryScreen, result: resultScreen }[nav.name];
   await fn();
 }
 
@@ -48,6 +73,7 @@ async function loginScreen() {
   const reps = (await S.listReps()).filter(r => r.active);
   screen.innerHTML = `
     <div style="display:flex;justify-content:flex-end;margin-bottom:10px"><div id="ctl"></div></div>
+    ${S.sessionExpired.rep ? `<p class="warn small">${t('session_expired')}</p>` : ''}
     <div class="card">
       <h2>${t('login_rep_title')}</h2>
       <form id="lf">
@@ -101,6 +127,33 @@ async function listScreen() {
       </button>`).join('') || `<div class="card muted">${t('no_assignments')}</div>`}`;
   wireSubtabs(screen, id => { listTab = id; render(); });
   screen.querySelectorAll('[data-a]').forEach(b => b.onclick = () => go({ name: 'detail', assignmentId: b.dataset.a }));
+}
+
+// ---------- mapa własnych adresów ----------
+let lmap;
+async function mapScreen() {
+  const items = await S.myAssignments(user.id);
+  screen.innerHTML = `<div id="amap" class="amap"></div>
+    <div class="map-legend small">${['ASSIGNED', 'IN_PROGRESS', 'TO_REVIEW', 'AUTO_VERIFIED', 'REJECTED'].map(st => `<span><i class="lg st-dot-${st}"></i>${t('st_' + st)}</span>`).join('')}</div>`;
+  if (!window.L) {
+    try { await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
+    catch { $('#amap').innerHTML = `<div class="ph-empty" style="height:100%">${t('map_offline')}</div>`; return; }
+  }
+  if (lmap) { lmap.remove(); lmap = null; }
+  lmap = L.map('amap', { zoomControl: true });
+  const dark = document.documentElement.dataset.theme === 'dark';
+  L.tileLayer(dark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    { maxZoom: 19, attribution: dark ? '&copy; OpenStreetMap, &copy; CARTO' : '&copy; OpenStreetMap' }).addTo(lmap);
+  const col = { ASSIGNED: '#64748B', IN_PROGRESS: '#2F6FED', SUBMITTED: '#F59E0B', TO_REVIEW: '#F59E0B', AUTO_VERIFIED: '#16A34A', APPROVED: '#0E9F8E', REJECTED: '#DC2626' };
+  const pts = [];
+  for (const a of items) {
+    const p = a.property; if (p.lat == null) continue;
+    pts.push([p.lat, p.lng]);
+    const m = L.circleMarker([p.lat, p.lng], { radius: 9, color: '#fff', weight: 2, fillColor: col[a.status], fillOpacity: .95 }).addTo(lmap);
+    m.bindPopup(`<b>${esc(addrLine(p))}</b><br>${t('st_' + a.status)}<br><button class="btn btn-primary" data-open="${a.id}" style="margin-top:6px">${t('open')}</button>`);
+    m.on('popupopen', e => e.popup.getElement().querySelector('[data-open]').onclick = () => go({ name: 'detail', assignmentId: a.id }));
+  }
+  if (pts.length) lmap.fitBounds(pts, { padding: [30, 30] }); else lmap.setView([52.07, 19.48], 6);
 }
 
 // ---------- szczegóły adresu ----------

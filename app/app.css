@@ -98,3 +98,13 @@ body { background: var(--bg); }
 .tabs button[data-tab="list"].active { color: var(--blue); }
 .tabs button[data-tab="profile"].active { color: #7C3AED; }
 .phone .subtab { padding: 9px 9px; gap: 5px; }
+
+/* Mapa */
+.amap { height: calc(100dvh - 200px); min-height: 320px; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+.map-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 10px; color: var(--muted); }
+.map-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.lg { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.st-dot-ASSIGNED { background: var(--gray); } .st-dot-IN_PROGRESS { background: var(--blue); } .st-dot-TO_REVIEW { background: var(--amber); }
+.st-dot-AUTO_VERIFIED { background: var(--green); } .st-dot-REJECTED { background: var(--red); }
+.tabs button[data-tab="map"].active { color: var(--teal); }
+#update { z-index: 200; gap: 12px; text-align: center; padding: 24px; }
