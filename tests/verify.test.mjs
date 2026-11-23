@@ -1,5 +1,5 @@
 // Test reguł weryfikacji: node tests/verify.test.mjs
-import { normalize, bestStreetMatch, hasNumber, evaluate, haversine } from '../assets/js/verify.js';
+import { normalize, bestStreetMatch, hasNumber, evaluate, haversine } from '../assets/js/domain/verify.js';
 const ok=(c,m)=>console.log(c?'OK  ':'FAIL',m);
 ok(normalize('ul. Poznańska 20')==='poznanska 20','normalize');
 ok(normalize('Aleja Łódzka')==='lodzka','ł + prefix');

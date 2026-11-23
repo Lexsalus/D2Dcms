@@ -56,13 +56,13 @@ export function toast(msg) {
 }
 
 // Prosty modal; zwraca element .modal i funkcję close
-export function modal(html) {
+export function modal(html, opts = {}) {
   const back = document.createElement('div');
   back.className = 'modal-back';
   back.innerHTML = `<div class="modal card">${html}</div>`;
   document.body.appendChild(back);
   const close = () => back.remove();
-  back.addEventListener('click', e => { if (e.target === back) close(); });
+  if (!opts.sticky) back.addEventListener('click', e => { if (e.target === back) close(); });
   return { el: back.querySelector('.modal'), close };
 }
 

@@ -1,6 +1,6 @@
 # Biometria behawioralna
 
-Kod: [`assets/js/biometrics.js`](../assets/js/biometrics.js), integracja w `store.js` (`pinCheck`, `sigCheck`, `touchCheck`).
+Kod: [`assets/js/domain/biometrics.js`](../assets/js/domain/biometrics.js), integracja w `assets/js/data/store.js` i `store-sb.js` (`pinCheck`, `sigCheck`, `touchCheck`).
 Metody wzorowane na projekcie [behavioral-biometrics](https://github.com/michalstankiewicz4-cell/behavioral-biometrics)
 (rytm hasła, weryfikacja podpisu DTW).
 

@@ -30,10 +30,18 @@
     <a class="card tile" href="admin/"><div class="ic">🖥️</div><h2 data-i18n="open_admin"></h2><p class="muted" data-i18n="open_admin_desc"></p></a>
     <a class="card tile" href="app/"><div class="ic">📱</div><h2 data-i18n="open_app"></h2><p class="muted" data-i18n="open_app_desc"></p></a>
   </div>
-  <div class="foot"><span data-i18n="prototype_note"></span> · <span id="ver"></span></div>
+  <div class="foot">
+    <label style="display:inline-flex;gap:8px;align-items:center;font-weight:400"><span data-i18n="mode_label"></span>
+      <select id="mode" data-i18n-tip="h_mode"><option value="supabase" data-i18n="mode_prod"></option><option value="local" data-i18n="mode_demo"></option></select></label>
+    · <span id="ver"></span>
+  </div>
   <script type="module">
-    import { applyDom, onLangChange } from './assets/js/i18n.js';
-    import { mountControls, versionLabel } from './assets/js/ui.js';
+    import { applyDom, onLangChange } from './assets/js/core/i18n.js';
+    import { mountControls, versionLabel } from './assets/js/core/ui.js';
+    import { BACKEND } from './assets/js/core/config.js';
+    const sel = document.getElementById('mode');
+    sel.value = localStorage.getItem('fc.backend') || BACKEND;
+    sel.onchange = () => localStorage.setItem('fc.backend', sel.value);
     mountControls(document.getElementById('ctl'));
     const paint = () => { applyDom(); document.getElementById('ver').textContent = versionLabel(); };
     onLangChange(paint); paint();

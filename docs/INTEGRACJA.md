@@ -3,7 +3,7 @@
 Dwa mechanizmy: **webhooki** (FieldCheck powiadamia CRM o zdarzeniach) oraz **wymiana plików JSON**
 (eksport całości z FieldChecka, import adresów do FieldChecka). Konfiguracja: *Ustawienia → Integracja z CRM*.
 
-Kod: [`assets/js/integration.js`](../assets/js/integration.js).
+Kod: [`assets/js/domain/integration.js`](../assets/js/domain/integration.js).
 
 ## Webhooki
 

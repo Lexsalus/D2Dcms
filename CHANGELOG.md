@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.6.0 — 2026-11-23
+
+**Tryb produkcyjny na Supabase** (domyślny; tryb Demo do wyboru na stronie startowej):
+
+- `assets/js/data/store-sb.js` — ten sam interfejs co tryb demo: logowanie Supabase Auth, dane w zakresie RLS, zapisy
+  przez RPC, zdjęcia w prywatnym buckecie (podpisane linki dla admina / managera), biometria w `bio_profiles`.
+- Panel: logowanie e-mail + hasło, „Nie pamiętasz hasła?”, ekran ustawienia hasła z linku zaproszenia / resetu,
+  **2FA (TOTP)** włączane i wyłączane w *Moje konto*, opcja „Wymagaj 2FA” w ustawieniach (egzekwowana w bazie).
+- Konta: Edge Function `admin-users` (zakładanie handlowców z hasłem, zaproszenia adminów / managerów, reset hasła;
+  link do przekazania, gdy e-mail nie może zostać wysłany). Zakładka Managerowie pokazuje też administratorów.
+- Aplikacja: logowanie e-mail + hasło (rytm wpisywania hasła jako sygnał biometrii), przypięcie do urządzenia w bazie.
+- SQL `02_extras.sql`: `bind_device`, tabela `secrets`, webhooki CRM wysyłane przez bazę (`pg_net`) z dziennikiem odpowiedzi,
+  wymóg 2FA w `my_role()`.
+- **Podział kodu**: `admin/js` (main, core, views/, lib/), `app/js` (main, core, screens/, lib/),
+  `assets/js` (core/, domain/, data/).
+- Test e2e na prawdziwym projekcie: `tests/e2e-supabase.mjs`.
+
 ## 0.5.2 — 2026-11-23
 
 - Projekt Supabase przygotowany: wyczyszczony, schemat FieldCheck uruchomiony, rejestracja wyłączona (`docs/SUPABASE.md` → Stan).

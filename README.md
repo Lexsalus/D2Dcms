@@ -4,8 +4,11 @@ System kontroli wizyt w terenie (windykacja terenowa, D2D): panel administratora
 Handlowiec dostaje listę adresów, na miejscu robi 2 zdjęcia (budynek z numerem, numer lokalu), wybiera wynik rozmowy,
 a system sam sprawdza OCR, GPS, czas i duplikaty. Wizyty wątpliwe trafiają do ręcznej weryfikacji.
 
-> **Status: prototyp 0.5.x** — działa w przeglądarce, dane zapisywane lokalnie (localStorage + IndexedDB).
-> Backend (Supabase) i aplikacja Android (Capacitor) — kolejne etapy, patrz [docs/PLAN.md](docs/PLAN.md).
+> **Status: 0.6.x** — dwa tryby (wybór na stronie startowej):
+> - **Produkcja** (domyślnie): baza Supabase, prawdziwe konta, zdjęcia w prywatnym magazynie, weryfikacja na serwerze — [docs/SUPABASE.md](docs/SUPABASE.md);
+> - **Demo**: przykładowe dane tylko w przeglądarce (localStorage + IndexedDB).
+>
+> Aplikacja Android (Capacitor) — kolejny etap, patrz [docs/PLAN.md](docs/PLAN.md).
 
 ## Uruchomienie
 
@@ -16,7 +19,12 @@ a system sam sprawdza OCR, GPS, czas i duplikaty. Wizyty wątpliwe trafiają do 
   ```
   i otwórz `http://localhost:8000`.
 
-### Dane demo
+### Logowanie (produkcja)
+
+Konta zakłada administrator w panelu (*Handlowcy*): handlowiec dostaje e-mail + hasło, admin / manager — zaproszenie
+z linkiem do ustawienia hasła. 2FA włącza każdy w *Moje konto*; admin może je wymagać w *Ustawieniach*.
+
+### Dane demo (tryb Demo)
 
 | Rola | Logowanie |
 |---|---|
@@ -27,7 +35,7 @@ a system sam sprawdza OCR, GPS, czas i duplikaty. Wizyty wątpliwe trafiają do 
 Panel i aplikacja w tej samej przeglądarce współdzielą dane — przypisanie w panelu od razu widać w aplikacji, a wysłana wizyta trafia do panelu.
 *Ustawienia → Przywróć dane demo* wczytuje przykładowy zestaw od nowa.
 
-## Funkcje (0.5)
+## Funkcje (0.6)
 
 **Panel administratora**
 - Pulpit: KPI z filtrami (okres, handlowiec, status), realizacja planu wg handlowca, statusy adresów, ostatnie wizyty, mapa (Leaflet/OSM).
@@ -55,26 +63,32 @@ Panel i aplikacja w tej samej przeglądarce współdzielą dane — przypisanie 
 ## Struktura
 
 ```
-index.html            strona startowa
-admin/                panel administratora (index.html, admin.js, admin.css)
-app/                  aplikacja handlowca (index.html, app.js, app.css)
+index.html                 strona startowa (wybór panelu / aplikacji, tryb Produkcja / Demo)
+admin/
+  index.html, admin.css    panel administratora
+  js/main.js               start, logowanie, nawigacja
+  js/core.js               wspólny stan, kolory sekcji, filtry, pomocnicze
+  js/views/                widoki: dashboard, properties, review, reps, reports, settings
+  js/lib/                  account (hasło, 2FA), notifications, import, export, trends
+app/
+  index.html, app.css      aplikacja handlowca (PWA: manifest, sw.js, icon.svg)
+  js/main.js               start, wersja, offline, przełączanie ekranów
+  js/core.js               stan, nawigacja, pasek górny
+  js/screens/              login, list, map, detail, photo, summary, result, profile
+  js/lib/                  capture (aparat, GPS, OCR), signature, protect (ochrona treści)
 assets/js/
-  version.js          numer wersji (podbijany przy każdej wysyłce)
-  i18n.js             tłumaczenia PL/EN/UA
-  help.js             teksty podpowiedzi PL/EN/UA
-  ui.js               motyw, przełączniki, toast, modal, tooltipy
-  store.js            warstwa danych (atrapa backendu, API jak docelowe)
-  verify.js           reguły automatycznej weryfikacji
-  biometrics.js       biometria behawioralna (PIN, podpis, dotyk)
-  route.js            planowanie trasy (najbliższy sąsiad + 2-opt)
-  integration.js      webhooki i format wymiany z CRM
-assets/css/base.css   wspólne style i paleta
-docs/                 dokumentacja techniczna
+  core/                    config, version, i18n (PL/EN/UA), help (podpowiedzi), ui (motyw, tooltipy, modal)
+  domain/                  verify (reguły kontroli), biometrics, route (trasy, rejony), integration (CRM)
+  data/                    data.js (wybór trybu), store.js (demo), store-sb.js (Supabase)
+assets/css/base.css        wspólne style, paleta, statusy, pod-zakładki, tooltipy
+supabase/                  00_reset.sql, 01_schema.sql, 02_extras.sql, functions/admin-users (Edge Function)
+tests/                     testy reguł i biometrii (Node), e2e na Supabase (Edge/Chrome)
+docs/                      dokumentacja techniczna
 ```
 
 ## Wersjonowanie
 
-Każda wysyłka (push) = podbicie wersji w `assets/js/version.js` + wpis w [CHANGELOG.md](CHANGELOG.md).
+Każda wysyłka (push) = podbicie wersji w `assets/js/core/version.js` + wpis w [CHANGELOG.md](CHANGELOG.md).
 Wersja jest widoczna w stopce panelu, na ekranie logowania i w profilu aplikacji.
 Schemat: `MAJOR.MINOR.PATCH` — PATCH poprawki, MINOR nowe funkcje, MAJOR zmiana niekompatybilna (np. przejście na serwer).
 

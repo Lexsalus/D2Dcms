@@ -1,6 +1,6 @@
 # Statusy i automatyczna weryfikacja
 
-Kod: [`assets/js/verify.js`](../assets/js/verify.js) — ta sama logika trafi do Edge Function.
+Kod: [`assets/js/domain/verify.js`](../assets/js/domain/verify.js) (podgląd w przeglądarce, tryb demo) i `fc_verify` w `supabase/01_schema.sql` (wiążąca ocena na serwerze).
 
 ## Statusy przypisania
 

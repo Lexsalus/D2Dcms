@@ -54,3 +54,36 @@ export function mapsLink(seq, mode = 'walking') {
 }
 
 export const km = m => (m / 1000).toFixed(m < 10000 ? 1 : 0);
+
+// Podział adresów na rejony (k-średnie po współrzędnych; bez współrzędnych — kod + ulica). Zwraca grupy id.
+export function regionsOf(P, k) {
+  P = P.filter(Boolean);
+  const geo = P.filter(p => p.lat != null), noGeo = P.filter(p => p.lat == null);
+  const groups = [];
+  if (geo.length) {
+    k = Math.max(1, Math.min(k, geo.length));
+    const pt = p => [p.lat, p.lng * Math.cos(p.lat * Math.PI / 180)];
+    const X = geo.map(pt);
+    const d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2;
+    // start: najdalsze punkty (deterministycznie)
+    const C = [X[0]];
+    while (C.length < k) {
+      let best = 0, bd = -1;
+      X.forEach((x, i) => { const d = Math.min(...C.map(c => d2(x, c))); if (d > bd) { bd = d; best = i; } });
+      C.push(X[best]);
+    }
+    let lab = [];
+    for (let it = 0; it < 25; it++) {
+      lab = X.map(x => C.map(c => d2(x, c)).reduce((bi, d, i, arr) => d < arr[bi] ? i : bi, 0));
+      for (let c = 0; c < k; c++) {
+        const m = X.filter((_, i) => lab[i] === c);
+        if (m.length) C[c] = [m.reduce((s, x) => s + x[0], 0) / m.length, m.reduce((s, x) => s + x[1], 0) / m.length];
+      }
+    }
+    for (let c = 0; c < k; c++) { const g = geo.filter((_, i) => lab[i] === c); if (g.length) groups.push(g); }
+  }
+  const byKey = {};
+  for (const p of noGeo) (byKey[`${p.zip}|${p.street}`.toLowerCase()] ??= []).push(p);
+  groups.push(...Object.values(byKey));
+  return groups.map(g => g.map(p => p.id));
+}

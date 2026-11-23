@@ -23,9 +23,24 @@
       <div class="field"><label data-i18n="password"></label><input name="password" type="password" required autocomplete="current-password"></div>
       <p class="bad small hidden" id="loginErr"></p>
       <p class="warn small hidden" id="expiredMsg" data-i18n="session_expired"></p>
+      <div class="field hidden" id="mfaStep"><label data-i18n="mfa_code"></label><input name="code" data-i18n-tip="h_mfa_code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}"></div>
       <button class="btn btn-primary btn-block" data-i18n="login"></button>
+      <p class="small"><a href="#" id="forgotLink" class="hidden" data-i18n="forgot_password" data-i18n-tip="h_forgot"></a></p>
       <p class="muted small" id="demoCreds"></p>
       <p class="muted small"><span data-i18n="prototype_note"></span> · <span class="version-text"></span></p>
+    </form>
+  </div>
+
+  <!-- Ustawienie hasła (link z zaproszenia / resetu) -->
+  <div id="pwSet" class="login-wrap hidden">
+    <form class="card login-card" id="pwForm">
+      <div class="login-head"><div class="logo">Field<b>Check</b></div></div>
+      <h2 data-i18n="set_password_title"></h2>
+      <p class="muted small" data-i18n="set_password_info"></p>
+      <div class="field"><label data-i18n="new_password"></label><input name="pw" type="password" data-i18n-tip="h_pw_rules" minlength="8" required autocomplete="new-password"></div>
+      <div class="field"><label data-i18n="repeat_password"></label><input name="pw2" type="password" minlength="8" required autocomplete="new-password"></div>
+      <p class="bad small hidden" id="pwErr"></p>
+      <button class="btn btn-primary btn-block" data-i18n="save"></button>
     </form>
   </div>
 
@@ -47,7 +62,7 @@
             <button class="btn btn-ghost bell" id="bell" data-i18n-tip="h_bell">🔔<span class="bell-count hidden" id="bellCount"></span></button>
             <div class="bell-panel card hidden" id="bellPanel"></div>
           </div>
-          <span id="who" class="muted"></span>
+          <button type="button" id="who" class="btn btn-ghost who" data-i18n-tip="h_my_account"></button>
           <button class="btn btn-ghost" id="logoutBtn" data-i18n="logout" data-i18n-tip="h_logout"></button>
         </div>
       </header>
@@ -55,6 +70,6 @@
     </main>
   </div>
 
-  <script type="module" src="admin.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

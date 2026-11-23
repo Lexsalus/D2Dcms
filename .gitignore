@@ -1,10 +1,10 @@
-# Materiały poza repozytorium (tylko lokalnie)
-_lokalne/
-*.pdf
 
+# Materiały poza repozytorium (tylko lokalnie)
 # Środowisko
-node_modules/
-www/
-android/app/build/
+*.pdf
 .DS_Store
 Thumbs.db
+_lokalne/
+android/app/build/
+node_modules/
+www/

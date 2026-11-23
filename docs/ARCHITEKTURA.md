@@ -1,18 +1,22 @@
 # Architektura
 
-## Teraz (prototyp)
+## Teraz
 
 ```
 przeglądarka
- ├─ admin/  ─┐
- ├─ app/    ─┼─ assets/js/store.js ── localStorage  (tabele JSON, klucz fc.db.v1)
- │           │                     └─ IndexedDB     (pliki zdjęć, baza fc-photos)
- └───────────┴─ assets/js/verify.js (reguły kontroli)
+ ├─ admin/js (main → views, lib) ─┐
+ ├─ app/js (main → screens, lib) ─┼─ assets/js/data/data.js ─┬─ store-sb.js → Supabase (Auth, Postgres + RLS, Storage, RPC, Edge Function)
+ │                                │                          └─ store.js    → localStorage + IndexedDB (tryb Demo)
+ └────────────────────────────────┴─ assets/js/domain (verify, biometrics, route, integration)
 ```
 
-- Statyczny hosting (GitHub Pages, workflow `.github/workflows`), bez kroku budowania.
-- Moduły ES, bez frameworka. Biblioteki z CDN ładowane tylko gdy potrzebne: Leaflet (mapa), SheetJS (XLSX), Tesseract.js (OCR).
-- `store.js` udostępnia **asynchroniczne** funkcje o kształcie docelowego API — ekrany nie wiedzą, skąd są dane.
+- Statyczny hosting (GitHub Pages, workflow build → deploy), bez kroku budowania, moduły ES.
+- Oba magazyny mają **to samo API** — ekrany nie wiedzą, który działa. Tryb wybiera `config.js` / strona startowa.
+- `store-sb.js` trzyma dane (w zakresie RLS) w pamięci podręcznej, odświeża po zmianach i co 20 s; zapisy i zmiany
+  statusów idą przez funkcje RPC (`start_visit`, `submit_visit`, `decide_visit`, `log_event`, `bind_device`).
+- Weryfikacja wizyty jest **wiążąca po stronie serwera** (`fc_verify` w SQL); `verify.js` w przeglądarce służy do podglądu i trybu demo.
+- Konta zakłada Edge Function `admin-users` (klucz serwisowy nigdy nie trafia do przeglądarki).
+- Webhooki CRM wysyła baza (`pg_net`), adres i token w tabeli `secrets` dostępnej tylko dla admina.
 
 ## Docelowo
 
@@ -60,4 +64,4 @@ Decyzja o statusie wizyty zawsze zapada po stronie serwera; OCR na telefonie sł
   brak odczytu zdjęć po wysłaniu.
 - Admin: pełny dostęp; pobieranie zdjęć i eksport wyłącznie przez funkcje zapisujące audyt.
 - Manager: odczyt i decyzje w obrębie swojego zespołu (`users.team`), bez eksportu i pobierania zdjęć — w prototypie
-  wymuszane w `store.js` (`scope`, `inScope`, `requireAdmin`), docelowo politykami RLS.
+  wymuszane politykami RLS i funkcją `in_scope()` w bazie (w trybie demo: `scope`, `inScope`, `requireAdmin` w `store.js`).

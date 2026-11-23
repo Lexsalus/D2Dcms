@@ -1,14 +1,19 @@
 // Warstwa danych prototypu: localStorage (tabele) + IndexedDB (zdjęcia).
 // Wszystkie metody są async i odpowiadają przyszłym wywołaniom Supabase (patrz docs/ARCHITEKTURA.md),
 // więc podmiana backendu nie wymaga zmian w ekranach.
-import { DEFAULT_SETTINGS, evaluate, perceptualHash } from './verify.js';
-import { deliver, visitRecord, SCHEMA_VERSION } from './integration.js';
-import { BIO_DEFAULTS, pinVector, pinScore, sigFeatures, sigScore, touchScore } from './biometrics.js';
+import { DEFAULT_SETTINGS, evaluate, perceptualHash } from '../domain/verify.js';
+import { deliver, visitRecord, SCHEMA_VERSION } from '../domain/integration.js';
+import { regionsOf } from '../domain/route.js';
+import { BIO_DEFAULTS, pinVector, pinScore, sigFeatures, sigScore, touchScore } from '../domain/biometrics.js';
 
 const SETTINGS0 = { ...DEFAULT_SETTINGS, ...BIO_DEFAULTS, whUrl: '', whToken: '', whEvents: ['visit.submitted', 'visit.decided'] };
 
 const DB_KEY = 'fc.db.v1';
 const SESSION_KEY = { admin: 'fc.session.admin', rep: 'fc.session.rep' };
+export const MODE = 'local';
+export const authLink = null, authLinkError = null;
+export async function refresh() {}
+export const mfaStatus = async () => ({ enabled: false, unsupported: true });
 export const OUTCOMES = ['talked', 'no_answer', 'refused', 'later'];
 export const FINAL = ['AUTO_VERIFIED', 'APPROVED', 'REJECTED'];
 export const SUBMITTED_SET = ['SUBMITTED', 'AUTO_VERIFIED', 'TO_REVIEW', 'APPROVED', 'REJECTED'];
@@ -285,37 +290,7 @@ export async function splitEvenly(admin, propertyIds, userIds, due) {
 // Podział wg rejonu: adresy blisko siebie trafiają do tego samego handlowca.
 // Ze współrzędnymi — k-średnie (k = liczba handlowców), bez — grupy wg kodu pocztowego i ulicy.
 // Rejony (największe najpierw) dostaje handlowiec z najmniejszym obciążeniem.
-export function regions(propertyIds, k) {
-  const P = propertyIds.map(getProperty).filter(Boolean);
-  const geo = P.filter(p => p.lat != null), noGeo = P.filter(p => p.lat == null);
-  const groups = [];
-  if (geo.length) {
-    k = Math.max(1, Math.min(k, geo.length));
-    const pt = p => [p.lat, p.lng * Math.cos(p.lat * Math.PI / 180)];
-    const X = geo.map(pt);
-    const d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2;
-    // start: najdalsze punkty (deterministycznie)
-    const C = [X[0]];
-    while (C.length < k) {
-      let best = 0, bd = -1;
-      X.forEach((x, i) => { const d = Math.min(...C.map(c => d2(x, c))); if (d > bd) { bd = d; best = i; } });
-      C.push(X[best]);
-    }
-    let lab = [];
-    for (let it = 0; it < 25; it++) {
-      lab = X.map(x => C.map(c => d2(x, c)).reduce((bi, d, i, arr) => d < arr[bi] ? i : bi, 0));
-      for (let c = 0; c < k; c++) {
-        const m = X.filter((_, i) => lab[i] === c);
-        if (m.length) C[c] = [m.reduce((s, x) => s + x[0], 0) / m.length, m.reduce((s, x) => s + x[1], 0) / m.length];
-      }
-    }
-    for (let c = 0; c < k; c++) { const g = geo.filter((_, i) => lab[i] === c); if (g.length) groups.push(g); }
-  }
-  const byKey = {};
-  for (const p of noGeo) (byKey[`${p.zip}|${p.street}`.toLowerCase()] ??= []).push(p);
-  groups.push(...Object.values(byKey));
-  return groups.map(g => g.map(p => p.id));
-}
+export function regions(propertyIds, k) { return regionsOf(propertyIds.map(getProperty), k); }
 export async function splitByRegion(admin, propertyIds, userIds, due) {
   const load = Object.fromEntries(userIds.map(id => [id, db.assignments.filter(a => a.userId === id && !FINAL.includes(a.status)).length]));
   const groups = regions(propertyIds, userIds.length).sort((a, b) => b.length - a.length);

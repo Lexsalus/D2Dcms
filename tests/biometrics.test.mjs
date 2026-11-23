@@ -1,5 +1,5 @@
 // Test biometrii: node tests/biometrics.test.mjs
-import { pinVector, pinScore, sigFeatures, sigScore, touchScore } from '../assets/js/biometrics.js';
+import { pinVector, pinScore, sigFeatures, sigScore, touchScore } from '../assets/js/domain/biometrics.js';
 const ok = (c, m) => console.log(c ? 'OK  ' : 'FAIL', m);
 let seed = 3; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 

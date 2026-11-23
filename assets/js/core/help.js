@@ -575,3 +575,83 @@ extend('uk', {
   wh_no_url: 'Спочатку вкажіть адресу webhook', bad_json: 'Неправильний файл JSON',
   h_import: 'Завантажте файл CSV, XLSX або JSON з адресами (напр. експорт з CRM). Дублікати пропускаються, адреси без координат можна геокодувати.',
 });
+
+// ---------- 0.6: Supabase — logowanie, hasła, 2FA, konta ----------
+extend('pl', {
+  mfa_code: 'Kod z aplikacji uwierzytelniającej', mfa_required: 'Podaj kod 2FA', mfa_bad_code: 'Nieprawidłowy kod', mfa_none: 'Brak skonfigurowanego 2FA',
+  forgot_password: 'Nie pamiętasz hasła?', enter_email_first: 'Wpisz najpierw e-mail', reset_sent: 'Wysłano link do ustawienia hasła',
+  set_password_title: 'Ustaw hasło', set_password_info: 'Ustal hasło do konta FieldCheck (min. 8 znaków).',
+  new_password: 'Nowe hasło', repeat_password: 'Powtórz hasło', passwords_differ: 'Hasła się różnią', password_saved: 'Hasło zapisane',
+  h_my_account: 'Twoje konto: hasło i logowanie dwuskładnikowe (2FA).', my_account: 'Moje konto', role: 'Rola', role_admin: 'Administrator',
+  change_password: 'Zmiana hasła', twofa: 'Logowanie dwuskładnikowe (2FA)',
+  h_twofa: 'Po włączeniu przy logowaniu potrzebny jest dodatkowo 6-cyfrowy kod z aplikacji (Google Authenticator, Microsoft Authenticator, Authy…).',
+  twofa_on: '2FA włączone', twofa_off: '2FA wyłączone', twofa_enable: 'Włącz 2FA', twofa_disable: 'Wyłącz 2FA',
+  h_twofa_on: 'Zeskanujesz kod QR w aplikacji uwierzytelniającej i potwierdzisz kodem.', h_twofa_off: 'Logowanie znów wymaga tylko hasła.',
+  demo_account_note: 'W trybie demo hasło i 2FA nie są dostępne.', twofa_required_cant_off: '2FA jest wymagane w ustawieniach — najpierw wyłącz ten wymóg.',
+  twofa_off_confirm: 'Wyłączyć 2FA dla tego konta?', twofa_forced: 'Administrator wymaga 2FA — włącz je, aby korzystać z panelu.',
+  twofa_step1: 'Zeskanuj kod QR w aplikacji uwierzytelniającej (lub wpisz klucz ręcznie).', twofa_step2: 'Wpisz 6-cyfrowy kod z aplikacji.',
+  twofa_secret: 'Klucz', twofa_confirm: 'Potwierdź',
+  h_rep_email: 'Login handlowca. Nie musi być prawdziwą skrzynką — służy tylko do logowania w aplikacji.',
+  h_rep_password: 'Min. 8 znaków. Przekaż je handlowcowi; rytm jego wpisywania jest też sygnałem biometrii.', leave_empty: 'puste = bez zmian',
+  mgr_invite_info: 'Na podany e-mail przyjdzie zaproszenie z linkiem do ustawienia hasła.', mgr_reset_info: 'Hasło zmienia sam użytkownik — możesz wysłać mu link „Wyślij link do hasła”.',
+  h_role_pick: 'Manager widzi tylko swój zespół; administrator ma pełny dostęp.', invite_sent: 'Zaproszenie wysłane',
+  send_reset: 'Wyślij link do hasła', h_send_reset: 'Wysyła e-mail z linkiem do ustawienia nowego hasła.',
+  s_require2fa: 'Wymagaj 2FA dla administratorów i managerów', h_s_require2fa: 'Konto bez 2FA po zalogowaniu musi je najpierw włączyć. Baza nie wpuści admina ani managera bez kodu 2FA.',
+  mode_supabase: 'Dane w bazie Supabase (produkcja).', h_app_password: 'Hasło nadane przez administratora. Na tym telefonie logujesz się raz — później sesja trwa do limitu w ustawieniach.',
+  password_too_short: 'Hasło musi mieć min. 8 znaków', email_required: 'Podaj e-mail', unauthorized: 'Sesja wygasła — zaloguj się ponownie', not_available: 'Niedostępne w tym trybie',
+  mode_label: 'Tryb', mode_prod: 'Produkcja', mode_demo: 'Demo (dane w przeglądarce)', h_mode: 'Produkcja: prawdziwe konta i dane w bazie. Demo: przykładowe dane tylko w tej przeglądarce.',
+});
+extend('en', {
+  mfa_code: 'Authenticator app code', mfa_required: 'Enter the 2FA code', mfa_bad_code: 'Invalid code', mfa_none: 'No 2FA configured',
+  forgot_password: 'Forgot your password?', enter_email_first: 'Enter your email first', reset_sent: 'Password link sent',
+  set_password_title: 'Set password', set_password_info: 'Choose a password for your FieldCheck account (min. 8 characters).',
+  new_password: 'New password', repeat_password: 'Repeat password', passwords_differ: 'Passwords differ', password_saved: 'Password saved',
+  h_my_account: 'Your account: password and two-factor login (2FA).', my_account: 'My account', role: 'Role', role_admin: 'Administrator',
+  change_password: 'Change password', twofa: 'Two-factor login (2FA)',
+  h_twofa: 'When on, login also requires a 6-digit code from an app (Google Authenticator, Microsoft Authenticator, Authy…).',
+  twofa_on: '2FA on', twofa_off: '2FA off', twofa_enable: 'Enable 2FA', twofa_disable: 'Disable 2FA',
+  h_twofa_on: 'Scan the QR code in your authenticator app and confirm with a code.', h_twofa_off: 'Login will require only the password again.',
+  demo_account_note: 'Password and 2FA are not available in demo mode.', twofa_required_cant_off: '2FA is required in settings — turn that requirement off first.',
+  twofa_off_confirm: 'Disable 2FA for this account?', twofa_forced: 'The administrator requires 2FA — enable it to use the panel.',
+  twofa_step1: 'Scan the QR code in your authenticator app (or enter the key manually).', twofa_step2: 'Enter the 6-digit code from the app.',
+  twofa_secret: 'Key', twofa_confirm: 'Confirm',
+  h_rep_email: 'Rep login. Does not have to be a real mailbox — used only to log in to the app.',
+  h_rep_password: 'Min. 8 characters. Give it to the rep; their typing rhythm is also a biometric signal.', leave_empty: 'empty = unchanged',
+  mgr_invite_info: 'An invitation with a password link will be sent to this email.', mgr_reset_info: 'Users change their own password — you can send them a password link.',
+  h_role_pick: 'A manager sees only their team; an administrator has full access.', invite_sent: 'Invitation sent',
+  send_reset: 'Send password link', h_send_reset: 'Sends an email with a link to set a new password.',
+  s_require2fa: 'Require 2FA for administrators and managers', h_s_require2fa: 'An account without 2FA must enable it after logging in. The database denies admins and managers without a 2FA code.',
+  mode_supabase: 'Data in the Supabase database (production).', h_app_password: 'Password from the administrator. You log in once on this phone — the session then lasts up to the limit in settings.',
+  password_too_short: 'Password must be at least 8 characters', email_required: 'Enter an email', unauthorized: 'Session expired — log in again', not_available: 'Not available in this mode',
+  mode_label: 'Mode', mode_prod: 'Production', mode_demo: 'Demo (data in the browser)', h_mode: 'Production: real accounts and data in the database. Demo: sample data only in this browser.',
+});
+extend('uk', {
+  mfa_code: 'Код із застосунку автентифікації', mfa_required: 'Введіть код 2FA', mfa_bad_code: 'Неправильний код', mfa_none: '2FA не налаштовано',
+  forgot_password: 'Забули пароль?', enter_email_first: 'Спочатку введіть e-mail', reset_sent: 'Посилання для пароля надіслано',
+  set_password_title: 'Встановіть пароль', set_password_info: 'Встановіть пароль до облікового запису FieldCheck (мін. 8 символів).',
+  new_password: 'Новий пароль', repeat_password: 'Повторіть пароль', passwords_differ: 'Паролі різняться', password_saved: 'Пароль збережено',
+  h_my_account: 'Ваш обліковий запис: пароль і двофакторний вхід (2FA).', my_account: 'Мій обліковий запис', role: 'Роль', role_admin: 'Адміністратор',
+  change_password: 'Зміна пароля', twofa: 'Двофакторний вхід (2FA)',
+  h_twofa: 'Після ввімкнення під час входу потрібен ще 6-значний код із застосунку (Google Authenticator, Microsoft Authenticator, Authy…).',
+  twofa_on: '2FA увімкнено', twofa_off: '2FA вимкнено', twofa_enable: 'Увімкнути 2FA', twofa_disable: 'Вимкнути 2FA',
+  h_twofa_on: 'Відскануйте QR-код у застосунку автентифікації та підтвердьте кодом.', h_twofa_off: 'Вхід знову потребуватиме лише пароля.',
+  demo_account_note: 'У демо-режимі пароль і 2FA недоступні.', twofa_required_cant_off: '2FA вимагається в налаштуваннях — спочатку вимкніть цю вимогу.',
+  twofa_off_confirm: 'Вимкнути 2FA для цього облікового запису?', twofa_forced: 'Адміністратор вимагає 2FA — увімкніть його, щоб користуватися панеллю.',
+  twofa_step1: 'Відскануйте QR-код у застосунку автентифікації (або введіть ключ вручну).', twofa_step2: 'Введіть 6-значний код із застосунку.',
+  twofa_secret: 'Ключ', twofa_confirm: 'Підтвердити',
+  h_rep_email: 'Логін представника. Не обов’язково справжня скринька — лише для входу в застосунок.',
+  h_rep_password: 'Мін. 8 символів. Передайте його представнику; ритм введення — також біометричний сигнал.', leave_empty: 'порожньо = без змін',
+  mgr_invite_info: 'На цей e-mail прийде запрошення з посиланням для встановлення пароля.', mgr_reset_info: 'Пароль змінює сам користувач — можна надіслати йому посилання.',
+  h_role_pick: 'Менеджер бачить лише свою команду; адміністратор має повний доступ.', invite_sent: 'Запрошення надіслано',
+  send_reset: 'Надіслати посилання для пароля', h_send_reset: 'Надсилає e-mail з посиланням для встановлення нового пароля.',
+  s_require2fa: 'Вимагати 2FA для адміністраторів і менеджерів', h_s_require2fa: 'Обліковий запис без 2FA після входу має спочатку його ввімкнути. База не пустить адміністратора чи менеджера без коду 2FA.',
+  mode_supabase: 'Дані в базі Supabase (робочий режим).', h_app_password: 'Пароль від адміністратора. На цьому телефоні входите один раз — далі сесія триває до ліміту в налаштуваннях.',
+  password_too_short: 'Пароль має містити щонайменше 8 символів', email_required: 'Вкажіть e-mail', unauthorized: 'Сесія завершилася — увійдіть знову', not_available: 'Недоступно в цьому режимі',
+  mode_label: 'Режим', mode_prod: 'Робочий', mode_demo: 'Демо (дані в браузері)', h_mode: 'Робочий: справжні облікові записи й дані в базі. Демо: приклад лише в цьому браузері.',
+});
+extend('pl', { link_title: 'Link do przekazania', link_info: 'Nie udało się wysłać e-maila na {email}. Przekaż ten link osobie (ważny 24 h) — ustawi w nim hasło.', copy: 'Kopiuj', copied: 'Skopiowano' });
+extend('en', { link_title: 'Link to pass on', link_info: 'The email to {email} could not be sent. Pass this link to the person (valid 24 h) — they will set a password there.', copy: 'Copy', copied: 'Copied' });
+extend('uk', { link_title: 'Посилання для передачі', link_info: 'Не вдалося надіслати e-mail на {email}. Передайте це посилання особі (дійсне 24 год) — вона встановить пароль.', copy: 'Копіювати', copied: 'Скопійовано' });
+extend('pl', { h_mfa_code: '6 cyfr z aplikacji uwierzytelniającej (zmienia się co 30 s).', h_forgot: 'Wpisz e-mail powyżej i kliknij — przyjdzie link do ustawienia nowego hasła.', h_pw_rules: 'Min. 8 znaków. Najlepiej kilka słów lub litery, cyfry i znaki.' });
+extend('en', { h_mfa_code: '6 digits from your authenticator app (changes every 30 s).', h_forgot: 'Enter your email above and click — you will get a link to set a new password.', h_pw_rules: 'Min. 8 characters. Best a few words or letters, digits and symbols.' });
+extend('uk', { h_mfa_code: '6 цифр із застосунку автентифікації (змінюється кожні 30 с).', h_forgot: 'Введіть e-mail вище й натисніть — прийде посилання для нового пароля.', h_pw_rules: 'Мін. 8 символів. Найкраще кілька слів або літери, цифри й знаки.' });
