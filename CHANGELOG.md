@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.1 — 2026-11-23
+
+- **Logowanie handlowca PIN-em** w trybie produkcyjnym (jak w demo): login + 4–6 cyfr, telefon pamięta login (potem sam PIN).
+  PIN jako hash bcrypt (`03_pin.sql`, tabela bez dostępu z przeglądarki), blokada na 15 min po 5 błędnych próbach,
+  przypięcie do jednego urządzenia; funkcja serwerowa `rep-login` wymienia poprawny PIN na sesję.
+- Panel: handlowiec zakładany z PIN-em (zmiana PIN-u w edycji).
+- `tests/seed-supabase.mjs` — dane testowe w bazie (5 handlowców, manager, 53 adresy, 43 wizyty ze zdjęciami) i ich usuwanie (`--remove`).
+
 ## 0.6.0 — 2026-11-23
 
 **Tryb produkcyjny na Supabase** (domyślny; tryb Demo do wyboru na stronie startowej):

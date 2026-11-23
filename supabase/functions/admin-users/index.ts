@@ -32,10 +32,11 @@ Deno.serve(async (req) => {
       const email = String(b.email || '').trim().toLowerCase();
       if (!email) return json({ error: 'email_required' }, 400);
       let uid: string; let link: string | null = null;
-      if (b.password) {
-        // handlowiec: konto od razu z hasłem przekazanym przez admina
-        if (String(b.password).length < 8) return json({ error: 'password_too_short' }, 400);
-        const { data, error } = await admin.auth.admin.createUser({ email, password: b.password, email_confirm: true, user_metadata: { name: b.name } });
+      if (role === 'rep') {
+        // handlowiec: logowanie loginem i PIN-em; hasło konta losowe (nieużywane)
+        if (!/^[0-9]{4,6}$/.test(String(b.pin || ''))) return json({ error: 'pin_format' }, 400);
+        const password = crypto.randomUUID() + crypto.randomUUID();
+        const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { name: b.name } });
         if (error) return json({ error: error.message }, 400);
         uid = data.user.id;
       } else {
@@ -53,8 +54,19 @@ Deno.serve(async (req) => {
         id: uid, email, name: b.name || email.split('@')[0], role, active: true, team: role === 'manager' ? (b.team || []) : [],
       });
       if (pe) return json({ error: pe.message }, 400);
+      if (role === 'rep') {
+        const { error: se } = await admin.rpc('fc_set_pin', { p_user: uid, p_pin: String(b.pin) });
+        if (se) return json({ error: 'pin_format' }, 400);
+      }
       await audit(`${role}_create`, email);
-      return json({ ok: true, id: uid, invited: !b.password, link });
+      return json({ ok: true, id: uid, invited: role !== 'rep', link });
+    }
+
+    if (b.action === 'set_pin') {
+      const { error } = await admin.rpc('fc_set_pin', { p_user: b.user_id, p_pin: String(b.pin || '') });
+      if (error) return json({ error: 'pin_format' }, 400);
+      await audit('pin_set', b.user_id);
+      return json({ ok: true });
     }
 
     if (b.action === 'set_password') {

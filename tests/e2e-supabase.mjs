@@ -35,7 +35,7 @@ const rest = (method, p, body) => api(method, '/rest/v1/' + p, body);
 
 const stamp = Date.now();
 const ADMIN = { email: `e2e-admin-${stamp}@fieldcheck.test`, password: 'Test-' + stamp + '!a' };
-const REP = { email: `e2e-rep-${stamp}@fieldcheck.test`, password: 'Rep-' + stamp + '!b', name: 'E2E Handlowiec' };
+const REP = { email: `e2e-rep-${stamp}@fieldcheck.test`, pin: String(1000 + stamp % 9000), name: 'E2E Handlowiec' };
 const created = [];
 let ok = true;
 const check = (cond, msg) => { console.log(cond ? '  ✓' : '  ✗', msg); if (!cond) ok = false; };
@@ -72,7 +72,7 @@ try {
   // 3. handlowiec przez panel (Edge Function)
   await pg.goto(BASE + '/admin/#/reps'); await pg.waitForTimeout(800);
   await pg.click('#addRep');
-  await pg.fill('#repForm [name=name]', REP.name); await pg.fill('#repForm [name=email]', REP.email); await pg.fill('#repForm [name=password]', REP.password);
+  await pg.fill('#repForm [name=name]', REP.name); await pg.fill('#repForm [name=email]', REP.email); await pg.fill('#repForm [name=pin]', REP.pin);
   await pg.click('#repForm .btn-primary');
   await pg.waitForFunction(n => document.body.innerText.includes(n), REP.name, { timeout: 20000 });
   const rep = (await rest('GET', `profiles?email=eq.${encodeURIComponent(REP.email)}&select=id,role,active`))[0];
@@ -98,7 +98,11 @@ try {
   const actx = await browser.newContext({ locale: 'pl-PL', viewport: { width: 390, height: 844 }, permissions: ['geolocation'], geolocation: { latitude: 51.7613, longitude: 18.0869, accuracy: 10 } });
   const m = await actx.newPage(); m.on('pageerror', e => errs.push('APP ' + e));
   await m.goto(BASE + '/app/');
-  await m.fill('[name=rep]', REP.email); await m.fill('[name=pin]', REP.password);
+  // zły PIN → odmowa, potem poprawny
+  await m.fill('[name=rep]', REP.email); await m.fill('[name=pin]', '0000');
+  await m.click('#lf button.btn-primary'); await m.waitForTimeout(2500);
+  check(await m.locator('#err').isVisible(), 'zły PIN odrzucony');
+  await m.fill('[name=pin]', ''); await m.type('[name=pin]', REP.pin, { delay: 150 });
   await m.click('#lf button.btn-primary');
   await m.waitForSelector('.addr-card', { timeout: 20000 });
   check(await m.locator('.addr-card').count() === 1, 'handlowiec widzi tylko swój 1 adres');

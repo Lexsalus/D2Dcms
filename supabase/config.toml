@@ -3,3 +3,6 @@ project_id = "qbtbquzylmgheaqlljhg"
 
 [functions.admin-users]
 verify_jwt = false   # token sprawdzany w kodzie funkcji (obsługa nowych kluczy API)
+
+[functions.rep-login]
+verify_jwt = false   # wywoływana przed zalogowaniem

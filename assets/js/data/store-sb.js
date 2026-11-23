@@ -190,19 +190,27 @@ export async function resetPassword(email) {
   if (error) throw new Error(error.message);
 }
 
-// Handlowiec: e-mail + hasło (raz na urządzeniu), rytm wpisywania hasła jako sygnał biometrii
-export async function loginRep(email, password, pinTimes = []) {
-  const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+// Handlowiec: login + PIN (jak w wersji demo). PIN sprawdza funkcja serwerowa rep-login (hash, blokada po 5 próbach,
+// jedno urządzenie) i zwraca jednorazowy token wymieniany na sesję. Rytm wpisywania PIN-u = sygnał biometrii.
+export async function loginRep(login, pin, pinTimes = []) {
+  const r = await fetch(`${SUPABASE_URL}/functions/v1/rep-login`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY },
+    body: JSON.stringify({ login: String(login).trim(), pin: String(pin), device: deviceId() }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.token_hash) throw new Error(j.error || 'bad_login');
+  const { error } = await sb.auth.verifyOtp({ token_hash: j.token_hash, type: 'magiclink' });
   if (error) throw new Error('bad_login');
   await afterSignIn(['rep']);
-  const { error: de } = await sb.rpc('bind_device', { p_device: deviceId() });
-  if (de) { await signOutLocal(); throw new Error(/device_bound/.test(de.message) ? 'device_bound' : 'bad_login'); }
   markLogin(); await refresh();
+  localStorage.setItem('fc.lastLogin', JSON.stringify({ login: j.email, name: j.name }));
   const pinBio = await pinCheck(pinTimes);
   if (pinBio) localStorage.setItem('fc.sb.pinBio', JSON.stringify(pinBio));
-  await sb.rpc('log_event', { p_action: pinBio?.flag ? 'bio_pin_flag' : 'login', p_object: 'app ' + deviceId() + (pinBio?.flag ? ` score ${pinBio.score}` : '') });
+  if (pinBio?.flag) await sb.rpc('log_event', { p_action: 'bio_pin_flag', p_object: `score ${pinBio.score}` });
   return me;
 }
+export function lastLogin() { try { return JSON.parse(localStorage.getItem('fc.lastLogin')); } catch { return null; } }
+export function forgetLogin() { localStorage.removeItem('fc.lastLogin'); }
 export function sessionBio() { try { return JSON.parse(localStorage.getItem('fc.sb.pinBio')); } catch { return null; } }
 
 // ---------- uprawnienia ----------
@@ -259,9 +267,9 @@ const panelUrl = () => new URL('../admin/', location.href).href;
 export async function saveRep(admin, rep) {
   if (rep.id) {
     must(await sb.from('profiles').update({ name: rep.name }).eq('id', rep.id));
-    if (rep.password) await adminFn({ action: 'set_password', user_id: rep.id, password: rep.password });
+    if (rep.pin) await adminFn({ action: 'set_pin', user_id: rep.id, pin: rep.pin });
   } else {
-    await adminFn({ action: 'create', role: 'rep', email: rep.email, name: rep.name, password: rep.password });
+    await adminFn({ action: 'create', role: 'rep', email: rep.email, name: rep.name, pin: rep.pin });
   }
   await changed();
 }

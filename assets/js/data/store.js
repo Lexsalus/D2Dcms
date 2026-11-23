@@ -14,6 +14,7 @@ export const MODE = 'local';
 export const authLink = null, authLinkError = null;
 export async function refresh() {}
 export const mfaStatus = async () => ({ enabled: false, unsupported: true });
+export const lastLogin = () => null, forgetLogin = () => {};
 export const OUTCOMES = ['talked', 'no_answer', 'refused', 'later'];
 export const FINAL = ['AUTO_VERIFIED', 'APPROVED', 'REJECTED'];
 export const SUBMITTED_SET = ['SUBMITTED', 'AUTO_VERIFIED', 'TO_REVIEW', 'APPROVED', 'REJECTED'];

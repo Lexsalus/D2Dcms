@@ -108,8 +108,8 @@ function repModal(rep) {
     <form id="repForm">
       <div class="field"><label>${t('name')}</label><input name="name" required value="${esc(rep?.name || '')}"></div>
       ${S.MODE === 'supabase' ? `
-      <div class="field"><label>${t('email')}${help('h_rep_email')}</label><input name="email" type="email" ${rep ? 'disabled' : 'required'} value="${esc(rep?.email || '')}"></div>
-      <div class="field"><label>${t(rep ? 'new_password' : 'password')}${help('h_rep_password')}</label><input name="password" type="text" minlength="8" ${rep ? '' : 'required'} autocomplete="off" placeholder="${rep ? t('leave_empty') : ''}"></div>` : `
+      <div class="field"><label>${t('rep_login')}${help('h_rep_email')}</label><input name="email" type="email" ${rep ? 'disabled' : 'required'} value="${esc(rep?.email || '')}"></div>
+      <div class="field"><label>${t(rep ? 'new_pin' : 'pin')}${help('h_rep_pin')}</label><input name="pin" inputmode="numeric" pattern="[0-9]{4,6}" ${rep ? '' : 'required'} autocomplete="off" placeholder="${rep ? t('leave_empty') : '4–6 cyfr'}"></div>` : `
       <div class="field"><label>${t('email')}</label><input name="email" type="email" value="${esc(rep?.email || '')}"></div>
       <div class="field"><label>${t('pin')}${help('h_pin')}</label><input name="pin" inputmode="numeric" pattern="[0-9]{4,6}" required value="${esc(rep?.pin || S.DEMO_PIN)}"></div>`}
       <div class="toolbar" style="justify-content:flex-end;margin:0">
@@ -121,6 +121,7 @@ function repModal(rep) {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.target));
     if (!f.password) delete f.password;
+    if (!f.pin) delete f.pin;
     try { await S.saveRep(admin, rep ? { id: rep.id, ...f } : f); m.close(); toast(t('saved')); render(); }
     catch (ex) { toast(t(ex.message)); }
   };

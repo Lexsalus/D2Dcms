@@ -116,3 +116,5 @@ body { background: var(--bg); }
 .route-list li { padding: 7px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
 .route-list li:last-child { border-bottom: 0; }
 .route-pin { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; color: #fff; font: 700 12px Inter, sans-serif; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); }
+
+.last-login { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }

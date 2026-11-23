@@ -21,8 +21,8 @@ a system sam sprawdza OCR, GPS, czas i duplikaty. Wizyty wątpliwe trafiają do 
 
 ### Logowanie (produkcja)
 
-Konta zakłada administrator w panelu (*Handlowcy*): handlowiec dostaje e-mail + hasło, admin / manager — zaproszenie
-z linkiem do ustawienia hasła. 2FA włącza każdy w *Moje konto*; admin może je wymagać w *Ustawieniach*.
+Konta zakłada administrator w panelu (*Handlowcy*): handlowiec dostaje login + PIN (jak w demo), admin / manager —
+zaproszenie z linkiem do ustawienia hasła. 2FA włącza każdy w *Moje konto*; admin może je wymagać w *Ustawieniach*.
 
 ### Dane demo (tryb Demo)
 
@@ -81,8 +81,8 @@ assets/js/
   domain/                  verify (reguły kontroli), biometrics, route (trasy, rejony), integration (CRM)
   data/                    data.js (wybór trybu), store.js (demo), store-sb.js (Supabase)
 assets/css/base.css        wspólne style, paleta, statusy, pod-zakładki, tooltipy
-supabase/                  00_reset.sql, 01_schema.sql, 02_extras.sql, functions/admin-users (Edge Function)
-tests/                     testy reguł i biometrii (Node), e2e na Supabase (Edge/Chrome)
+supabase/                  00_reset … 03_pin.sql, functions/admin-users i rep-login (Edge Functions)
+tests/                     testy reguł i biometrii (Node), e2e na Supabase (Edge/Chrome), dane testowe (seed)
 docs/                      dokumentacja techniczna
 ```
 

@@ -655,3 +655,26 @@ extend('uk', { link_title: 'Посилання для передачі', link_in
 extend('pl', { h_mfa_code: '6 cyfr z aplikacji uwierzytelniającej (zmienia się co 30 s).', h_forgot: 'Wpisz e-mail powyżej i kliknij — przyjdzie link do ustawienia nowego hasła.', h_pw_rules: 'Min. 8 znaków. Najlepiej kilka słów lub litery, cyfry i znaki.' });
 extend('en', { h_mfa_code: '6 digits from your authenticator app (changes every 30 s).', h_forgot: 'Enter your email above and click — you will get a link to set a new password.', h_pw_rules: 'Min. 8 characters. Best a few words or letters, digits and symbols.' });
 extend('uk', { h_mfa_code: '6 цифр із застосунку автентифікації (змінюється кожні 30 с).', h_forgot: 'Введіть e-mail вище й натисніть — прийде посилання для нового пароля.', h_pw_rules: 'Мін. 8 символів. Найкраще кілька слів або літери, цифри й знаки.' });
+
+// ---------- logowanie handlowca PIN-em (produkcja) ----------
+extend('pl', {
+  rep_login: 'Login (e-mail)', new_pin: 'Nowy PIN', other_account: 'Inne konto', pin_locked: 'Za dużo błędnych prób — spróbuj za 15 minut', pin_format: 'PIN musi mieć 4–6 cyfr',
+  h_rep_pin: '4–6 cyfr. Handlowiec loguje się nim w aplikacji. Po 5 błędnych próbach konto blokuje się na 15 minut.',
+  h_app_login: 'Login nadany przez administratora. Telefon go zapamięta — następnym razem wpiszesz tylko PIN.',
+  h_other_account: 'Zaloguj się innym loginem na tym telefonie (konto i tak działa tylko na jednym urządzeniu).',
+  h_app_pin: 'PIN nadaje administrator. Konto działa tylko na jednym telefonie; po 5 błędnych próbach blokada na 15 minut.',
+});
+extend('en', {
+  rep_login: 'Login (email)', new_pin: 'New PIN', other_account: 'Other account', pin_locked: 'Too many failed attempts — try again in 15 minutes', pin_format: 'PIN must be 4–6 digits',
+  h_rep_pin: '4–6 digits. The rep logs in to the app with it. After 5 failed attempts the account is locked for 15 minutes.',
+  h_app_login: 'Login from the administrator. The phone remembers it — next time you only enter the PIN.',
+  h_other_account: 'Log in with a different login on this phone (an account works on one device only anyway).',
+  h_app_pin: 'The PIN is set by the administrator. An account works on one phone only; 5 failed attempts lock it for 15 minutes.',
+});
+extend('uk', {
+  rep_login: 'Логін (e-mail)', new_pin: 'Новий PIN', other_account: 'Інший обліковий запис', pin_locked: 'Забагато невдалих спроб — спробуйте за 15 хвилин', pin_format: 'PIN має містити 4–6 цифр',
+  h_rep_pin: '4–6 цифр. Представник входить ним у застосунок. Після 5 невдалих спроб обліковий запис блокується на 15 хвилин.',
+  h_app_login: 'Логін від адміністратора. Телефон його запам’ятає — наступного разу введете лише PIN.',
+  h_other_account: 'Увійти іншим логіном на цьому телефоні (обліковий запис і так працює лише на одному пристрої).',
+  h_app_pin: 'PIN встановлює адміністратор. Обліковий запис працює лише на одному телефоні; після 5 невдалих спроб — блокування на 15 хвилин.',
+});

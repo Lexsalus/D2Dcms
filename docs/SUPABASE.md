@@ -17,7 +17,7 @@ publiczna rejestracja wyłączona. Sprawdzone: klucz publiczny bez logowania nie
 
 1. **SQL Editor → `supabase/00_reset.sql`** — czyści schemat `public` (tabele, widoki, funkcje, typy).
    Obiekty rozszerzeń zostają. Użytkowników logowania i pliki w Storage czyści się ręcznie w panelu.
-2. **SQL Editor → `supabase/01_schema.sql`** — tabele, RLS, funkcje, bucket `photos`. Można uruchamiać ponownie.
+2. **SQL Editor → `supabase/01_schema.sql`**, potem `02_extras.sql` i `03_pin.sql` — tabele, RLS, funkcje, bucket `photos`, webhooki, PIN-y. Można uruchamiać ponownie.
 3. **Authentication → Users → Add user** — konto administratora (e-mail + hasło, *Auto Confirm User*).
 4. **SQL Editor:**
    ```sql
@@ -62,13 +62,18 @@ i do dodania zdjęć w swojej otwartej wizycie. Po wysłaniu nie widzi już zdj�
 | Kto | Jak powstaje konto | Logowanie |
 |---|---|---|
 | Admin, manager | panel → *Handlowcy → Managerowie → Dodaj* (rola manager / admin) → zaproszenie e-mailem; gdy e-maila nie da się wysłać, panel pokazuje link do przekazania | e-mail + hasło (+ kod 2FA, jeśli włączone) |
-| Handlowiec | panel → *Handlowcy → Dodaj* (e-mail jako login + hasło od admina) | aplikacja: e-mail + hasło, konto przypięte do pierwszego telefonu |
+| Handlowiec | panel → *Handlowcy → Dodaj* (login w formie e-maila + PIN 4–6 cyfr) | aplikacja: login + PIN (telefon pamięta login); 5 błędnych prób = blokada 15 min; konto przypięte do pierwszego telefonu |
 
 - **2FA (TOTP):** każdy włącza / wyłącza w *Moje konto* (kliknięcie nazwiska w panelu). Admin może w *Ustawieniach →
   Sesje i powiadomienia* wymagać 2FA od adminów i managerów — wtedy baza (`my_role()`) nie daje im uprawnień bez `aal2`.
 - **Poczta:** projekt używa domyślnej poczty Supabase (limit kilku e-maili na godzinę, wysyłka tylko na adresy członków
   organizacji Supabase). Dla zaproszeń na dowolne adresy trzeba podłączyć własny SMTP (*Authentication → Emails → SMTP*);
   do tego czasu panel pokazuje link zaproszenia do przekazania.
+
+## Edge Functions
+
+- `admin-users` — zakładanie kont (handlowiec z PIN-em, admin / manager z zaproszeniem), zmiana PIN-u, link do hasła, usuwanie.
+- `rep-login` — logowanie handlowca loginem i PIN-em (`fc_check_pin`), zwraca jednorazowy token wymieniany w aplikacji na sesję.
 
 ## Edge Function `admin-users`
 
@@ -78,6 +83,11 @@ Wdrożenie (z katalogu repo, token w zmiennej `SUPABASE_ACCESS_TOKEN`):
 ```powershell
 npx supabase functions deploy admin-users --project-ref qbtbquzylmgheaqlljhg --no-verify-jwt --use-api --yes
 ```
+
+## Dane testowe
+
+`node tests/seed-supabase.mjs <plik>` (z `SB_SERVICE`) zakłada konta `@fieldcheck.test` (5 handlowców z PIN-ami, manager),
+53 adresy `TEST-…`, przypisania i 43 wizyty ze zdjęciami; dane logowania zapisuje do pliku. `--remove` usuwa wszystko testowe.
 
 ## Test end-to-end
 
