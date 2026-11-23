@@ -2,9 +2,10 @@
 // Wszystkie metody są async i odpowiadają przyszłym wywołaniom Supabase (patrz docs/ARCHITEKTURA.md),
 // więc podmiana backendu nie wymaga zmian w ekranach.
 import { DEFAULT_SETTINGS, evaluate, perceptualHash } from './verify.js';
+import { deliver, visitRecord, SCHEMA_VERSION } from './integration.js';
 import { BIO_DEFAULTS, pinVector, pinScore, sigFeatures, sigScore, touchScore } from './biometrics.js';
 
-const SETTINGS0 = { ...DEFAULT_SETTINGS, ...BIO_DEFAULTS };
+const SETTINGS0 = { ...DEFAULT_SETTINGS, ...BIO_DEFAULTS, whUrl: '', whToken: '', whEvents: ['visit.submitted', 'visit.decided'] };
 
 const DB_KEY = 'fc.db.v1';
 const SESSION_KEY = { admin: 'fc.session.admin', rep: 'fc.session.rep' };
@@ -74,9 +75,12 @@ function audit(userId, action, object) {
 export const DEMO_ADMIN = { email: 'admin@fieldcheck.demo', password: 'demo1234' };
 export const DEMO_PIN = '1234';
 
+export const DEMO_MANAGER = { email: 'manager@fieldcheck.demo', password: 'demo1234' };
+// Logowanie do panelu: admin lub manager (manager widzi tylko swój zespół)
 export async function loginAdmin(email, password) {
-  const u = db.users.find(x => x.role === 'admin' && x.email.toLowerCase() === email.trim().toLowerCase());
+  const u = db.users.find(x => ['admin', 'manager'].includes(x.role) && (x.email || '').toLowerCase() === email.trim().toLowerCase());
   if (!u || u.password !== password) throw new Error('bad_login');
+  if (u.active === false) throw new Error('account_inactive');
   localStorage.setItem(SESSION_KEY.admin, JSON.stringify({ userId: u.id, sv: u.sv || 0, start: Date.now(), seen: Date.now() }));
   audit(u.id, 'login', 'panel'); save();
   return u;
@@ -99,7 +103,7 @@ export function currentUser(kind) {
   try {
     const s = JSON.parse(localStorage.getItem(SESSION_KEY[kind]));
     const u = s && db.users.find(x => x.id === s.userId);
-    if (!u || (u.sv || 0) !== s.sv || (kind === 'rep' && !u.active)) return null;
+    if (!u || (u.sv || 0) !== s.sv || u.active === false) return null;
     // wygasanie: admin po bezczynności, handlowiec po maks. długości sesji
     const now = Date.now();
     const expired = kind === 'admin'
@@ -117,6 +121,20 @@ export function touchSession(kind) {
     if (s && Date.now() - (s.seen || 0) > 20000) { s.seen = Date.now(); localStorage.setItem(SESSION_KEY[kind], JSON.stringify(s)); }
   } catch { /* brak sesji */ }
 }
+// Zakres danych: null = wszystko (admin), lista id handlowców = zespół managera
+export function scope(u) { return u?.role === 'manager' ? (u.team || []) : null; }
+export const inScope = (u, repId) => { const sc = scope(u); return !sc || sc.includes(repId); };
+export const isAdmin = u => u?.role === 'admin';
+function requireAdmin(u) { if (!isAdmin(u)) throw new Error('forbidden'); }
+
+export const listManagers = async () => db.users.filter(u => u.role === 'manager');
+export async function saveManager(admin, m) {
+  requireAdmin(admin);
+  if (m.id) { const u = db.users.find(x => x.id === m.id); if (!m.password) delete m.password; Object.assign(u, m); }
+  else db.users.push({ id: uid(), role: 'manager', active: true, sv: 0, team: [], ...m });
+  audit(admin.id, m.id ? 'manager_update' : 'manager_create', m.name); save();
+}
+
 export function sessionBio() {
   try { return JSON.parse(localStorage.getItem(SESSION_KEY.rep))?.pinBio || null; } catch { return null; }
 }
@@ -248,6 +266,8 @@ export async function assign(admin, propertyIds, userId, due) {
     n++;
   }
   audit(admin.id, 'assign', `${n} → ${getUser(userId)?.name}`); save();
+  if (n) emit('assignment.created', { rep: { id: userId, name: getUser(userId)?.name }, due: due || null,
+    properties: propertyIds.map(getProperty).filter(Boolean).map(p => ({ id: p.id, external_id: p.external_id || null, street: p.street, building: p.building, unit: p.unit || null, city: p.city })) });
   return { n, blocked };
 }
 export async function splitEvenly(admin, propertyIds, userIds, due) {
@@ -372,12 +392,14 @@ export async function submitVisit(user, visitId, { outcome, note, signature, tou
   v.reasons = res.reasons; v.details = res.details; v.status = res.status;
   a.status = res.status; a.updatedAt = Date.now();
   audit(user.id, 'visit_submit', `${p.street} ${p.building}/${p.unit || ''} → ${res.status}`); save();
+  emit('visit.submitted', visitRecord(v, p, a, u));
   return v;
 }
 
 // ---------- decyzje admina ----------
 export async function decide(admin, visitId, decision, reason) {
   const v = getVisit(visitId);
+  if (!inScope(admin, v.userId)) throw new Error('forbidden');
   const a = db.assignments.find(x => x.id === v.assignmentId);
   v.decision = decision; v.decisionReason = reason || null; v.decidedBy = admin.id; v.decidedAt = Date.now();
   if (decision === 'approve') { v.status = a.status = 'APPROVED'; }
@@ -387,6 +409,7 @@ export async function decide(admin, visitId, decision, reason) {
   a.updatedAt = Date.now();
   const p = getProperty(v.propertyId);
   audit(admin.id, 'decision_' + decision, `${p.street} ${p.building}/${p.unit || ''}${reason ? ' — ' + reason : ''}`); save();
+  emit('visit.decided', { ...visitRecord(v, p, a, getUser(v.userId)), decided_by: { id: admin.id, name: admin.name } });
 }
 
 // ---------- zdjęcia ----------
@@ -396,7 +419,8 @@ export async function photoUrl(photo) {
   return (await idbGet(photo.id)) || null;
 }
 export async function logEvent(user, action, object) { audit(user.id, action, object); save(); }
-export async function logPhotoDownload(admin, photo) { audit(admin.id, 'photo_download', photo.id); save(); }
+export async function logPhotoDownload(admin, photo) {
+  requireAdmin(admin); audit(admin.id, 'photo_download', photo.id); save(); }
 
 // Obrazek demo (tabliczka/drzwi) rysowany w locie dla danych przykładowych
 const synthCache = new Map();
@@ -433,9 +457,10 @@ function syntheticPhoto(label, type) {
 // ---------- powiadomienia (w panelu; e-mail/push po stronie serwera w kolejnym etapie) ----------
 export function notifications(admin) {
   const s = db.settings, now = Date.now(), out = [];
-  const queue = db.assignments.filter(a => a.status === 'TO_REVIEW').length;
+  const A = db.assignments.filter(a => inScope(admin, a.userId));
+  const queue = A.filter(a => a.status === 'TO_REVIEW').length;
   if (queue >= s.notifyQueue) out.push({ id: 'queue', kind: 'queue', n: queue, ts: now, sticky: true });
-  const open = db.assignments.filter(a => ['ASSIGNED', 'IN_PROGRESS'].includes(a.status) && a.due);
+  const open = A.filter(a => ['ASSIGNED', 'IN_PROGRESS'].includes(a.status) && a.due);
   const end = a => new Date(a.due + 'T23:59:59').getTime();
   const overdue = open.filter(a => end(a) < now).length;
   const soon = open.filter(a => end(a) >= now && end(a) - now <= s.notifyDueH * 3600000).length;
@@ -444,7 +469,7 @@ export function notifications(admin) {
   const seen = admin.notifSeen || 0;
   for (const e of db.audit) {
     if (e.ts <= seen) break; // audit posortowany od najnowszych
-    if (['screenshot_attempt', 'bio_flag', 'bio_pin_flag'].includes(e.action))
+    if (['screenshot_attempt', 'bio_flag', 'bio_pin_flag'].includes(e.action) && inScope(admin, e.userId))
       out.push({ id: e.id, kind: e.action, who: getUser(e.userId)?.name || '—', obj: e.object, ts: e.ts });
   }
   return out;
@@ -463,6 +488,39 @@ export async function purgeOldPhotos(admin) {
   old.forEach(p => { p.purged = true; p.synthetic = false; });
   audit(admin.id, 'retention_purge', `${old.length} zdjęć > ${db.settings.retentionDays} dni`); save();
   return old.length;
+}
+
+// ---------- integracja z CRM ----------
+function emit(event, data) {
+  const s = db.settings;
+  if (!s.whUrl || !(s.whEvents || []).includes(event)) return;
+  deliver(s.whUrl, s.whToken, event, data).then(r => logDelivery(event, r));
+}
+function logDelivery(event, r) {
+  db = load() || db; // świeży stan (wysyłka jest asynchroniczna)
+  (db.webhookLog ??= []).unshift({ ts: Date.now(), event, ...r });
+  db.webhookLog.length = Math.min(db.webhookLog.length, 30);
+  save();
+  changeListeners.forEach(fn => fn());
+}
+export const webhookLog = () => (db.webhookLog || []).slice();
+export async function testWebhook(admin) {
+  if (!isAdmin(admin)) throw new Error('forbidden');
+  const r = await deliver(db.settings.whUrl, db.settings.whToken, 'test', { message: 'FieldCheck — test połączenia', by: admin.name });
+  logDelivery('test', r);
+  return r;
+}
+// Eksport całości w formacie wymiany (schema 1) — tylko admin, z wpisem w audycie
+export async function exportJson(admin) {
+  if (!isAdmin(admin)) throw new Error('forbidden');
+  audit(admin.id, 'export', 'JSON (CRM)'); save();
+  return {
+    schema: SCHEMA_VERSION, source: 'fieldcheck', exportedAt: new Date().toISOString(),
+    properties: db.properties.map(p => ({ id: p.id, external_id: p.external_id || null, street: p.street, building: p.building, unit: p.unit || null, zip: p.zip, city: p.city, lat: p.lat, lng: p.lng, notes: p.notes || null })),
+    reps: db.users.filter(u => u.role === 'rep').map(u => ({ id: u.id, name: u.name, email: u.email || null, active: u.active })),
+    assignments: db.assignments.map(a => ({ id: a.id, property_id: a.propertyId, rep_id: a.userId, due: a.due || null, status: a.status })),
+    visits: db.visits.filter(v => v.submittedAt).map(v => visitRecord(v, getProperty(v.propertyId), db.assignments.find(a => a.id === v.assignmentId), getUser(v.userId))),
+  };
 }
 
 // ---------- reset / seed ----------
@@ -563,8 +621,14 @@ function seedData() {
     d.photos.push({ id: uid(), visitId: v.id, type: door ? 'door' : 'unit', synthetic: true, label: door ? '' : unitLabel, ocrText: door ? '' : unitLabel.replace('?', ''), ocrConf: unitLabel.includes('?') ? 30 : 88, hash: null, takenAt: startedAt + 120e3 + v.details.gapMin * 60e3, fileAge: 0 });
     if (reasons.some(x => x.code === 'r_ocr_unit_unreadable')) d.photos[d.photos.length - 1].ocrText = '';
   }
+  d.users.push({ id: uid(), role: 'manager', name: 'Kierownik Zespołu', email: DEMO_MANAGER.email, password: DEMO_MANAGER.password, active: true, sv: 0, team: reps.slice(0, 3).map(r => r.id) });
   d.audit.push({ id: uid(), userId: admin.id, action: 'seed', object: 'dane demo', ts: now });
   return d;
 }
 
 if (!db) { db = seedData(); save(); }
+// migracja danych demo sprzed 0.5: dodaj przykładowego managera
+if (!db.users.some(u => u.role === 'manager') && db.users.some(u => u.email === DEMO_ADMIN.email)) {
+  db.users.push({ id: uid(), role: 'manager', name: 'Kierownik Zespołu', email: DEMO_MANAGER.email, password: DEMO_MANAGER.password, active: true, sv: 0, team: db.users.filter(u => u.role === 'rep').slice(0, 3).map(r => r.id) });
+  save();
+}

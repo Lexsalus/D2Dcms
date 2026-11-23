@@ -100,7 +100,7 @@ body { background: var(--bg); }
 .phone .subtab { padding: 9px 9px; gap: 5px; }
 
 /* Mapa */
-.amap { height: calc(100dvh - 200px); min-height: 320px; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+.amap { height: 52dvh; min-height: 300px; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
 .map-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 10px; color: var(--muted); }
 .map-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .lg { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
@@ -108,3 +108,11 @@ body { background: var(--bg); }
 .st-dot-AUTO_VERIFIED { background: var(--green); } .st-dot-REJECTED { background: var(--red); }
 .tabs button[data-tab="map"].active { color: var(--teal); }
 #update { z-index: 200; gap: 12px; text-align: center; padding: 24px; }
+
+/* Trasa */
+.route-card { margin-top: 12px; }
+.route-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.route-list { margin: 0 0 12px; padding-left: 22px; }
+.route-list li { padding: 7px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+.route-list li:last-child { border-bottom: 0; }
+.route-pin { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; color: #fff; font: 700 12px Inter, sans-serif; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); }

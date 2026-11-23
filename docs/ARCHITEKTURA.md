@@ -32,7 +32,7 @@ Decyzja o statusie wizyty zawsze zapada po stronie serwera; OCR na telefonie sł
 
 | Tabela | Pola |
 |---|---|
-| `users` | id, role (`admin`/`manager`/`rep`), name, email, active, device_id, session_version |
+| `users` | id, role (`admin`/`manager`/`rep`), name, email, active, device_id, session_version, team (manager) |
 | `bio_profiles` | user_id, pin_samples (jsonb), sig_templates (jsonb), touch_samples (jsonb), updated_at — osobna tabela, ostrzejszy RLS |
 | `properties` | id, street, building, unit, zip, city, lat, lng, notes, created_at |
 | `assignments` | id, property_id, user_id, due, status, assigned_by, created_at, updated_at |
@@ -59,4 +59,5 @@ Decyzja o statusie wizyty zawsze zapada po stronie serwera; OCR na telefonie sł
 - Handlowiec: `select` tylko swoich `assignments` i powiązanych `properties`; `insert` wizyt i zdjęć tylko do swoich przypisań;
   brak odczytu zdjęć po wysłaniu.
 - Admin: pełny dostęp; pobieranie zdjęć i eksport wyłącznie przez funkcje zapisujące audyt.
-- Manager (później): odczyt i decyzje w obrębie swojego zespołu, bez eksportu i pobierania zdjęć.
+- Manager: odczyt i decyzje w obrębie swojego zespołu (`users.team`), bez eksportu i pobierania zdjęć — w prototypie
+  wymuszane w `store.js` (`scope`, `inScope`, `requireAdmin`), docelowo politykami RLS.

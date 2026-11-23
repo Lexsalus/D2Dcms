@@ -3,12 +3,13 @@ import { t, applyDom, onLangChange, fmtDate, fmtTime, fmtDateTime } from '../ass
 import { mountControls, versionLabel, esc, toast, modal, badge, addrLine, download, tip, help, subtabs, wireSubtabs } from '../assets/js/ui.js';
 import * as S from '../assets/js/store.js';
 import { sigSvg } from '../assets/js/biometrics.js';
+import { routeLength, km } from '../assets/js/route.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 let admin = null;
 let purged = false;
 const ROUTES = ['dashboard', 'properties', 'review', 'reps', 'reports', 'settings'];
-const state = { period: 'week', rep: '', propFilter: 'all', propSearch: '', selected: new Set(), assignRep: '', reviewSel: null, status: '', reviewGroup: 'all', reportTab: 'perf', setTab: 'verify' };
+const state = { period: 'week', rep: '', propFilter: 'all', propSearch: '', selected: new Set(), assignRep: '', reviewSel: null, status: '', reviewGroup: 'all', reportTab: 'perf', setTab: 'verify', repsTab: 'reps', routeDay: '' };
 
 // Kolor i ikona każdej sekcji — pasek boczny, nagłówek strony i pod-zakładki
 const SECTION = {
@@ -50,10 +51,14 @@ function boot() {
   render();
 }
 
+// Manager: tylko pulpit, weryfikacja i raporty swojego zespołu
+const MANAGER_ROUTES = ['dashboard', 'review', 'reports'];
+const routesFor = u => S.isAdmin(u) ? ROUTES : MANAGER_ROUTES;
 function currentRoute() {
   const r = location.hash.replace('#/', '');
-  return ROUTES.includes(r) ? r : 'dashboard';
+  return routesFor(admin).includes(r) ? r : 'dashboard';
 }
+const canExport = () => S.isAdmin(admin);
 
 async function render() {
   admin = S.currentUser('admin');
@@ -61,19 +66,19 @@ async function render() {
   $('#shell').classList.toggle('hidden', !admin);
   if (!admin) {
     $('#expiredMsg').classList.toggle('hidden', !S.sessionExpired.admin);
-    $('#demoCreds').textContent = t('demo_creds', { creds: `${S.DEMO_ADMIN.email} / ${S.DEMO_ADMIN.password}` });
+    $('#demoCreds').textContent = t('demo_creds', { creds: `admin: ${S.DEMO_ADMIN.email} · manager: ${S.DEMO_MANAGER.email} · ${S.DEMO_ADMIN.password}` });
     applyDom($('#login'));
     return;
   }
   applyDom();
   S.sessionExpired.admin = false;
-  $('#who').textContent = admin.name;
+  $('#who').innerHTML = `${esc(admin.name)}${S.isAdmin(admin) ? '' : ` <span class="role-badge" ${tip('h_manager_role')}>${t('role_manager')}</span>`}`;
   if (!purged) { purged = true; S.purgeOldPhotos(admin).then(n => n && toast(t('retention_done', { n }))); }
   paintBell();
   const route = currentRoute();
-  const assignments = await S.listAssignments();
+  const assignments = (await S.listAssignments()).filter(a => S.inScope(admin, a.userId));
   const toReview = assignments.filter(a => a.status === 'TO_REVIEW').length;
-  $('#nav').innerHTML = ROUTES.map(r => `
+  $('#nav').innerHTML = routesFor(admin).map(r => `
     <a href="#/${r}" class="${r === route ? 'active' : ''}" style="--c:${SECTION[r].c}" ${tip('h_nav_' + r)}>
       <span><i class="nav-ic">${SECTION[r].i}</i>${t('nav_' + r)}</span>${r === 'review' && toReview ? `<span class="count">${toReview}</span>` : ''}
     </a>`).join('');
@@ -141,7 +146,10 @@ function periodStart(p) {
 
 // Aktualna (najnowsza) wizyta dla każdego przypisania
 async function data() {
-  const [props, asg, visits, reps] = await Promise.all([S.listProperties(), S.listAssignments(), S.listVisits(), S.listReps()]);
+  let [props, asg, visits, reps] = await Promise.all([S.listProperties(), S.listAssignments(), S.listVisits(), S.listReps()]);
+  // manager widzi wyłącznie swój zespół
+  const sc = S.scope(admin);
+  if (sc) { asg = asg.filter(a => sc.includes(a.userId)); visits = visits.filter(v => sc.includes(v.userId)); reps = reps.filter(r => sc.includes(r.id)); }
   const latest = new Map();
   for (const v of visits) {
     const cur = latest.get(v.assignmentId);
@@ -162,7 +170,7 @@ function filters(withPeriod = true, withStatus = false) {
       ${STATUS_FILTER.map(x => `<option value="${x}" ${state.status === x ? 'selected' : ''}>${x === 'todo' ? t('todo') : t('st_' + x)}</option>`).join('')}</select>` : ''}`;
 }
 async function wireFilters(root) {
-  const reps = await S.listReps();
+  const reps = (await S.listReps()).filter(r => S.inScope(admin, r.id));
   const sel = $('#fRep', root);
   sel.innerHTML += reps.map(r => `<option value="${r.id}" ${state.rep === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('');
   sel.onchange = () => { state.rep = sel.value; render(); };
@@ -234,11 +242,15 @@ async function dashboard(view) {
           <tr data-visit="${v.id}" style="cursor:pointer"><td>${esc(addrLine(S.getProperty(a.propertyId)))}</td><td>${esc(repName(a.userId))}</td><td>${badge(v.status)}</td><td>${fmtTime(v.submittedAt)}</td></tr>`).join('') || `<tr><td colspan="4" class="muted">${t('no_data')}</td></tr>`}
         </tbody></table>
       </div>
-      <div class="card"><h3>${t('visits_map')}${help('h_map')}</h3><div id="map"></div></div>
+      <div class="card">
+        <div class="section-title"><h3 style="margin:0">${state.rep ? t('route_done') : t('visits_map')}${help(state.rep ? 'h_route_done' : 'h_map')}</h3>
+          ${state.rep ? routeDaySelect(A, latest) : `<span class="muted small">${t('route_pick_rep')}</span>`}</div>
+        <div id="map"></div><div id="routeStats" class="muted small" style="margin-top:6px"></div></div>
     </div>`;
   await wireFilters(view);
   view.querySelectorAll('[data-visit]').forEach(tr => tr.onclick = () => visitModal(tr.dataset.visit));
   drawMap(A, latest);
+  const rd = $('#routeDay'); if (rd) rd.onchange = () => { state.routeDay = rd.value; render(); };
 }
 
 function donut(cat, colors, centerPct) {
@@ -277,7 +289,30 @@ function drawMap(A, latest) {
       .bindPopup(`<b>${esc(addrLine(p))}</b><br>${esc(repName(a.userId))}<br>${t('st_' + a.status)}${v?.submittedAt ? ' · ' + fmtDateTime(v.submittedAt) : ''}`)
       .addTo(map);
   }
-  if (pts.length) map.fitBounds(pts, { padding: [20, 20] }); else map.setView([52.07, 19.48], 6);
+  // zrealizowana trasa wybranego handlowca w wybranym dniu: wizyty w kolejności wysłania, punkty GPS
+  if (state.rep) {
+    const day = state.routeDay;
+    const seq = A.map(a => latest.get(a.id)).filter(v => v?.submittedAt && localDay(v.submittedAt) === day)
+      .sort((a, b) => a.submittedAt - b.submittedAt)
+      .map(v => ({ v, lat: v.gps?.lat ?? S.getProperty(v.propertyId).lat, lng: v.gps?.lng ?? S.getProperty(v.propertyId).lng }))
+      .filter(x => x.lat != null);
+    if (seq.length) {
+      L.polyline(seq.map(x => [x.lat, x.lng]), { color: SECTION.dashboard.c, weight: 4, opacity: .85 }).addTo(map);
+      seq.forEach((x, i) => L.marker([x.lat, x.lng], { icon: L.divIcon({ className: '', html: `<span class="route-pin">${i + 1}</span>`, iconSize: [24, 24], iconAnchor: [12, 12] }) })
+        .bindPopup(`<b>${i + 1}. ${esc(addrLine(S.getProperty(x.v.propertyId)))}</b><br>${fmtTime(x.v.submittedAt)} · ${t('st_' + x.v.status)}`).addTo(map));
+      const span = (seq[seq.length - 1].v.submittedAt - seq[0].v.submittedAt) / 60000;
+      $('#routeStats').textContent = t('route_stats', { n: seq.length, km: km(routeLength(seq)), from: fmtTime(seq[0].v.submittedAt), to: fmtTime(seq[seq.length - 1].v.submittedAt), h: (span / 60).toFixed(1) });
+      map.fitBounds(seq.map(x => [x.lat, x.lng]), { padding: [30, 30] });
+    } else $('#routeStats').textContent = t('no_data');
+  }
+}
+
+const localDay = ts => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+// Dni, w których handlowiec wysyłał wizyty (wybór dnia trasy)
+function routeDaySelect(A, latest) {
+  const days = [...new Set(A.map(a => latest.get(a.id)).filter(v => v?.submittedAt).map(v => localDay(v.submittedAt)))].sort().reverse();
+  if (!days.includes(state.routeDay)) state.routeDay = days[0] || '';
+  return `<select id="routeDay" ${tip('h_route_day')}>${days.map(d => `<option value="${d}" ${d === state.routeDay ? 'selected' : ''}>${fmtDate(d + 'T12:00:00')}</option>`).join('')}</select>`;
 }
 
 // ---------- NIERUCHOMOŚCI ----------
@@ -309,7 +344,7 @@ async function properties(view) {
       { id: 'assigned', label: t('filter_assigned'), count: nAssigned, color: '#0891B2', tip: t('h_prop_filter') },
     ], state.propFilter)}
     <div class="toolbar">
-      <label class="btn btn-primary" style="margin:0" ${tip('h_import')}>${t('import_file')}<input type="file" id="importFile" accept=".csv,.txt,.xlsx,.xls" hidden></label>
+      <label class="btn btn-primary" style="margin:0" ${tip('h_import')}>${t('import_file')}<input type="file" id="importFile" accept=".csv,.txt,.xlsx,.xls,.json" hidden></label>
       <button class="btn" id="addAddr" ${tip('h_add_address')}>+ ${t('add_address')}</button>
       ${filters(false)}
       <input id="pSearch" ${tip('h_search')} placeholder="${t('search')}" value="${esc(state.propSearch)}">
@@ -436,6 +471,7 @@ const HEAD = {
   notes: ['uwagi', 'notes', 'note', 'opis', 'примітки'],
   lat: ['lat', 'latitude', 'szerokosc'],
   lng: ['lng', 'lon', 'long', 'longitude', 'dlugosc'],
+  external_id: ['external_id', 'id_crm', 'crm_id', 'externalid'],
 };
 function mapHeaders(headers) {
   const idx = {};
@@ -468,7 +504,14 @@ async function loadXLSX() {
 async function importFile(file) {
   if (!file) return;
   let table;
-  if (/\.xlsx?$/i.test(file.name)) {
+  if (/\.json$/i.test(file.name)) {
+    // format wymiany CRM: tablica adresów albo obiekt { properties: [...] } (docs/INTEGRACJA.md)
+    try {
+      const j = JSON.parse(await file.text());
+      const arr = Array.isArray(j) ? j : (j.properties || []);
+      table = [Object.keys(arr[0] || {}), ...arr.map(o => Object.keys(arr[0] || {}).map(k => o[k]))];
+    } catch { return toast(t('bad_json')); }
+  } else if (/\.xlsx?$/i.test(file.name)) {
     const X = await loadXLSX();
     const wb = X.read(await file.arrayBuffer());
     table = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false });
@@ -480,7 +523,7 @@ async function importFile(file) {
   const get = (r, f) => idx[f] === undefined ? '' : String(r[idx[f]] ?? '').trim();
   const rows = table.slice(1).map(r => ({
     street: cleanStreet(get(r, 'street')), building: get(r, 'building'), unit: get(r, 'unit'),
-    zip: get(r, 'zip'), city: get(r, 'city'), notes: get(r, 'notes'),
+    zip: get(r, 'zip'), city: get(r, 'city'), notes: get(r, 'notes'), external_id: get(r, 'external_id') || null,
     lat: get(r, 'lat') ? parseFloat(get(r, 'lat').replace(',', '.')) : null,
     lng: get(r, 'lng') ? parseFloat(get(r, 'lng').replace(',', '.')) : null,
   }));
@@ -561,7 +604,7 @@ async function renderVisitBody(el, v) {
       <div class="meta">
         <div><b>${t('ocr')}</b>${help('h_ocr')}<b>:</b> ${ph?.ocrText ? esc(ph.ocrText.slice(0, 80)) : '<span class="muted">—</span>'}</div>
         <div>${checkHtml}</div>
-        ${ph ? `<button class="btn btn-ghost small" data-dl="${ph.id}" style="margin-top:6px" ${tip('h_download')}>⬇ ${t('download')}</button>` : ''}
+        ${ph && canExport() ? `<button class="btn btn-ghost small" data-dl="${ph.id}" style="margin-top:6px" ${tip('h_download')}>⬇ ${t('download')}</button>` : ''}
       </div>
     </div>`;
   const streetOk = d.streetScore !== undefined && !(v.reasons || []).some(r => r.code === 'r_street_mismatch');
@@ -576,10 +619,10 @@ async function renderVisitBody(el, v) {
       <span ${tip('h_dup')}>${t('dup_photo')}: ${d.duplicate ? t('yes') : t('no')} ${mark(!d.duplicate)}</span>
       <span ${tip('h_camera')}>${t('in_app_camera')} ${mark(d.cameraOk !== false)}</span>
     </div>
-    <div class="toolbar" style="margin:10px 0 0"><button class="btn btn-ghost" data-zip="${v.id}" ${tip('h_zip_visit')}>🗂 ${t('zip_visit')}</button></div>
+    ${canExport() ? `<div class="toolbar" style="margin:10px 0 0"><button class="btn btn-ghost" data-zip="${v.id}" ${tip('h_zip_visit')}>🗂 ${t('zip_visit')}</button></div>` : ''}
     ${bioBox(v)}
     ${(v.reasons || []).length ? `<p class="small"><b>${t('reasons')}</b>${help('h_reasons')}<b>:</b> ${v.reasons.map(r => `<span class="chip" style="--c:${GROUPS[groupOf(r.code)].c}">${esc(reasonText(r))}</span>`).join(' ')}</p>` : ''}`;
-  el.querySelector('[data-zip]').onclick = () => zipPhotos([v], `${p.street}_${p.building}`.replace(/\s+/g, '_'));
+  if (el.querySelector('[data-zip]')) el.querySelector('[data-zip]').onclick = () => zipPhotos([v], `${p.street}_${p.building}`.replace(/\s+/g, '_'));
   el.querySelectorAll('[data-dl]').forEach(b => b.onclick = async () => {
     const ph = photos.find(x => x.id === b.dataset.dl);
     const url = await S.photoUrl(ph);
@@ -662,8 +705,14 @@ async function visitModal(visitId) {
 // ---------- HANDLOWCY ----------
 async function reps(view) {
   $('#pageTitle').textContent = t('reps_title');
-  const [list, asg] = await Promise.all([S.listReps(), S.listAssignments()]);
+  const [list, asg, mgrs] = await Promise.all([S.listReps(), S.listAssignments(), S.listManagers()]);
+  const tabs = subtabs([
+    { id: 'reps', label: t('reps_title'), count: list.length, color: SECTION.reps.c, tip: t('h_nav_reps') },
+    { id: 'managers', label: t('managers'), count: mgrs.length, color: '#0891B2', tip: t('h_managers') },
+  ], state.repsTab);
+  if (state.repsTab === 'managers') return managers(view, tabs, mgrs, list);
   view.innerHTML = `
+    ${tabs}
     <div class="toolbar"><button class="btn btn-primary" id="addRep" ${tip('h_add_rep')}>+ ${t('add_rep')}</button></div>
     <div class="card" style="padding:0"><table>
       <thead><tr><th>${t('name')}</th><th>${t('email')}</th><th>${t('active')}</th><th>${t('device')}${help('h_device_col')}</th><th>${t('assigned_count')}</th><th>${t('bio_profile')}${help('h_bio_col')}</th><th></th></tr></thead>
@@ -682,10 +731,60 @@ async function reps(view) {
             <button class="btn btn-ghost" data-act="reset_bio" data-id="${r.id}" ${tip('h_reset_bio')} ${r.bio ? '' : 'disabled'}>${t('reset_bio')}</button>
           </td>
         </tr>`).join('')}</tbody></table></div>`;
+  wireSubtabs(view, id => { state.repsTab = id; render(); });
   $('#addRep').onclick = () => repModal();
   view.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => repModal(S.getUser(b.dataset.edit)));
   view.querySelectorAll('[data-act]').forEach(b => b.onclick = async () => { await S.repAction(admin, b.dataset.id, b.dataset.act); toast(t('saved')); render(); });
 }
+function managers(view, tabs, mgrs, reps) {
+  view.innerHTML = `
+    ${tabs}
+    <div class="toolbar"><button class="btn btn-primary" id="addMgr" ${tip('h_add_manager')}>+ ${t('add_manager')}</button></div>
+    <div class="card" style="padding:0"><table>
+      <thead><tr><th>${t('name')}</th><th>${t('email')}</th><th>${t('active')}</th><th>${t('team')}${help('h_team')}</th><th></th></tr></thead>
+      <tbody>${mgrs.map(m => `
+        <tr>
+          <td><b>${esc(m.name)}</b></td><td>${esc(m.email || '')}</td>
+          <td>${m.active !== false ? `<span class="ok">● ${t('yes')}</span>` : `<span class="bad">● ${t('no')}</span>`}</td>
+          <td class="small">${(m.team || []).map(id => esc(S.getUser(id)?.name || '?')).join(', ') || `<span class="muted">—</span>`}</td>
+          <td style="text-align:right;white-space:nowrap">
+            <button class="btn btn-ghost" data-medit="${m.id}" ${tip('h_edit_manager')}>${t('edit')}</button>
+            <button class="btn btn-ghost" data-act="${m.active !== false ? 'deactivate' : 'activate'}" data-id="${m.id}" ${tip('h_activate')}>${t(m.active !== false ? 'deactivate' : 'activate')}</button>
+            <button class="btn btn-ghost" data-act="remote_logout" data-id="${m.id}" ${tip('h_remote_logout')}>${t('remote_logout')}</button>
+          </td>
+        </tr>`).join('') || `<tr><td colspan="5" class="muted">${t('no_data')}</td></tr>`}</tbody></table></div>
+    <p class="muted small">${t('manager_rights')}</p>`;
+  wireSubtabs(view, id => { state.repsTab = id; render(); });
+  $('#addMgr').onclick = () => managerModal(null, reps);
+  view.querySelectorAll('[data-medit]').forEach(b => b.onclick = () => managerModal(S.getUser(b.dataset.medit), reps));
+  view.querySelectorAll('[data-act]').forEach(b => b.onclick = async () => { await S.repAction(admin, b.dataset.id, b.dataset.act); toast(t('saved')); render(); });
+}
+function managerModal(m, reps) {
+  const md = modal(`
+    <h2>${m ? t('edit') : t('add_manager')}</h2>
+    <form id="mgrForm">
+      <div class="field"><label>${t('name')}</label><input name="name" required value="${esc(m?.name || '')}"></div>
+      <div class="field"><label>${t('email')}</label><input name="email" type="email" required value="${esc(m?.email || '')}"></div>
+      <div class="field"><label>${t('password')}${help('h_mgr_password')}</label><input name="password" type="password" ${m ? '' : 'required'} autocomplete="new-password"></div>
+      <div class="field"><label>${t('team')}${help('h_team')}</label>
+        ${reps.map(r => `<label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" name="team" value="${r.id}" ${(m?.team || []).includes(r.id) ? 'checked' : ''}> ${esc(r.name)}</label>`).join('')}
+      </div>
+      <div class="toolbar" style="justify-content:flex-end;margin:0">
+        <button type="button" class="btn" data-x>${t('cancel')}</button><button class="btn btn-primary">${t('save')}</button>
+      </div>
+    </form>`);
+  $('[data-x]', md.el).onclick = md.close;
+  $('#mgrForm', md.el).onsubmit = async e => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const rec = { name: f.get('name'), email: f.get('email'), team: f.getAll('team') };
+    if (f.get('password')) rec.password = f.get('password');
+    if (m) rec.id = m.id;
+    await S.saveManager(admin, rec);
+    md.close(); toast(t('saved')); render();
+  };
+}
+
 function repModal(rep) {
   const m = modal(`
     <h2>${rep ? t('edit') : t('add_rep')}</h2>
@@ -711,7 +810,7 @@ async function reports(view) {
   $('#pageTitle').textContent = t('reports_title');
   const { asg, reps: repList, latest } = await data();
   const from = periodStart(state.period);
-  const audit = await S.listAudit();
+  const audit = (await S.listAudit()).filter(e => S.isAdmin(admin) || S.inScope(admin, e.userId) || e.userId === admin.id);
   const cfg = await S.getSettings();
   const rows = repList.filter(r => !state.rep || r.id === state.rep).map(r => {
     const A = asg.filter(a => a.userId === r.id);
@@ -737,9 +836,10 @@ async function reports(view) {
     ${subtabs([
       { id: 'perf', label: t('rt_perf'), color: '#DB2777', tip: t('h_rt_perf') },
       { id: 'out', label: t('rep_outcomes'), color: '#0891B2', tip: t('h_outcomes') },
+      { id: 'trends', label: t('rt_trends'), color: '#7C3AED', tip: t('h_rt_trends') },
       { id: 'audit', label: t('audit_log'), count: audit.length, color: '#64748B', tip: t('h_audit') },
     ], state.reportTab)}
-    <div class="toolbar">${filters()}<span class="spacer"></span><button class="btn" id="zipPeriod" ${tip('h_zip_period')}>🗂 ${t('zip_period')}</button>${expButtons('expRep')}</div>
+    <div class="toolbar">${filters()}<span class="spacer"></span>${canExport() ? `<button class="btn" id="zipPeriod" ${tip('h_zip_period')}>🗂 ${t('zip_period')}</button>${expButtons('expRep')}` : `<span class="muted small">${t('manager_no_export')}</span>`}</div>
     <div class="card ${state.reportTab === 'perf' ? '' : 'hidden'}" data-sec="perf" style="padding:0;overflow:auto">
       <table>
         <thead><tr>
@@ -770,8 +870,9 @@ async function reports(view) {
       <tbody>${rows.map(r => `<tr><td>${esc(r.name)}</td>${S.OUTCOMES.map(o => `<td>${r.out[o]}</td>`).join('')}</tr>`).join('')}</tbody></table>
     </div>
 
+    <div class="${state.reportTab === 'trends' ? '' : 'hidden'}" data-sec="trends">${trendsHtml(repList.filter(r => !state.rep || r.id === state.rep), asg, latest, from)}</div>
     <div class="card ${state.reportTab === 'audit' ? '' : 'hidden'}" data-sec="audit">
-      <div class="section-title"><h3 style="margin:0">${t('audit_log')}${help('h_audit')}</h3>${expButtons('expAudit')}</div>
+      <div class="section-title"><h3 style="margin:0">${t('audit_log')}${help('h_audit')}</h3>${canExport() ? expButtons('expAudit') : ''}</div>
       <div class="table-wrap" style="max-height:calc(100vh - 260px)">
       <table><thead><tr><th>${t('audit_when')}</th><th>${t('audit_who')}</th><th>${t('audit_action')}</th><th>${t('audit_object')}</th></tr></thead>
       <tbody>${audit.slice(0, 300).map(a => `<tr><td>${fmtDateTime(a.ts)}</td><td>${esc(repName(a.userId))}</td><td><code>${esc(a.action)}</code></td><td>${esc(a.object)}</td></tr>`).join('')}</tbody></table>
@@ -787,9 +888,59 @@ async function reports(view) {
     head: [t('audit_when'), t('audit_who'), t('audit_action'), t('audit_object')],
     rows: audit.map(a => [fmtDateTime(a.ts), repName(a.userId), a.action, a.object]),
   }));
-  $('#zipPeriod').onclick = () => zipPhotos(
+  if ($('#zipPeriod')) $('#zipPeriod').onclick = () => zipPhotos(
     asg.filter(a => !state.rep || a.userId === state.rep).map(a => latest.get(a.id)).filter(v => v?.submittedAt && v.submittedAt >= from),
     state.period);
+}
+
+// ---------- raporty zaawansowane: trendy, godziny, powody ----------
+const PALETTE = ['#2F6FED', '#0E9F8E', '#F59E0B', '#DB2777', '#7C3AED', '#0891B2', '#64748B', '#16A34A'];
+function trendsHtml(reps, asg, latest, from) {
+  const V = asg.map(a => latest.get(a.id)).filter(v => v?.submittedAt && v.submittedAt >= from && reps.some(r => r.id === v.userId));
+  if (!V.length) return `<div class="card"><p class="muted">${t('no_data')}</p></div>`;
+  // dni: od pierwszej wizyty w okresie (maks. 30) do dziś
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const first = new Date(Math.max(Math.min(...V.map(v => v.submittedAt)), today.getTime() - 29 * 864e5)); first.setHours(0, 0, 0, 0);
+  const days = []; for (let d = new Date(first); d <= today; d.setDate(d.getDate() + 1)) days.push(localDay(d.getTime()));
+  const series = reps.map((r, i) => ({ name: r.name, c: PALETTE[i % PALETTE.length], vals: days.map(d => V.filter(v => v.userId === r.id && localDay(v.submittedAt) === d).length) }))
+    .filter(x => x.vals.some(Boolean));
+  const maxY = Math.max(1, ...series.flatMap(x => x.vals));
+  const W = 1000, H = 240, L0 = 34, B0 = 26, T0 = 10, R0 = 10;
+  const X = i => L0 + (days.length === 1 ? (W - L0 - R0) / 2 : i * (W - L0 - R0) / (days.length - 1));
+  const Y = v => H - B0 - v / maxY * (H - B0 - T0);
+  const ticks = [...new Set([0, Math.ceil(maxY / 2), maxY])];
+  const step = Math.ceil(days.length / 8);
+  const line = `<svg viewBox="0 0 ${W} ${H}" class="chart">
+    ${ticks.map(v => `<line x1="${L0}" x2="${W - R0}" y1="${Y(v)}" y2="${Y(v)}" class="grid"/><text x="${L0 - 6}" y="${Y(v) + 4}" text-anchor="end" class="ax">${v}</text>`).join('')}
+    ${days.map((d, i) => i % step ? '' : `<text x="${X(i)}" y="${H - 8}" text-anchor="middle" class="ax">${d.slice(8)}.${d.slice(5, 7)}</text>`).join('')}
+    ${series.map(x => `<polyline fill="none" stroke="${x.c}" stroke-width="2.5" stroke-linejoin="round" points="${x.vals.map((v, i) => `${X(i)},${Y(v)}`).join(' ')}"/>
+      ${x.vals.map((v, i) => v ? `<circle cx="${X(i)}" cy="${Y(v)}" r="3.5" fill="${x.c}"><title>${esc(x.name)} · ${days[i]}: ${v}</title></circle>` : '').join('')}`).join('')}
+  </svg>
+  <ul class="legend inline">${series.map(x => `<li><i style="background:${x.c}"></i>${esc(x.name)}</li>`).join('')}</ul>`;
+  // godziny wysyłki wizyt
+  const hours = Array.from({ length: 24 }, (_, h) => V.filter(v => new Date(v.submittedAt).getHours() === h).length);
+  const h0 = Math.max(0, Math.min(6, hours.findIndex(Boolean))), h1 = Math.max(20, 23 - [...hours].reverse().findIndex(Boolean));
+  const HH = hours.slice(h0, h1 + 1), maxH = Math.max(1, ...HH);
+  const bw = (W - L0 - R0) / HH.length;
+  const bars = `<svg viewBox="0 0 ${W} 180" class="chart">
+    ${HH.map((v, i) => `<rect x="${L0 + i * bw + 3}" y="${154 - v / maxH * 140}" width="${bw - 6}" height="${v / maxH * 140}" rx="3" fill="#7C3AED" opacity="${v ? .85 : .15}"><title>${h0 + i}:00 — ${v}</title></rect>
+      <text x="${L0 + i * bw + bw / 2}" y="172" text-anchor="middle" class="ax">${h0 + i}</text>${v ? `<text x="${L0 + i * bw + bw / 2}" y="${150 - v / maxH * 140}" text-anchor="middle" class="ax">${v}</text>` : ''}`).join('')}
+  </svg>`;
+  // powody oznaczeń wg handlowca (grupy)
+  const gk = Object.keys(GROUPS);
+  const flagged = reps.map(r => {
+    const RV = V.filter(v => v.userId === r.id);
+    const cnt = Object.fromEntries(gk.map(g => [g, RV.filter(v => (v.reasons || []).some(x => groupOf(x.code) === g)).length]));
+    return { name: r.name, n: RV.length, cnt };
+  });
+  const table = `<table><thead><tr><th>${t('col_rep')}</th><th>${t('kpi_submitted')}</th>${gk.map(g => `<th><span class="chip" style="--c:${GROUPS[g].c}">${t('grp_' + g)}</span></th>`).join('')}</tr></thead>
+    <tbody>${flagged.map(f => `<tr><td><b>${esc(f.name)}</b></td><td>${f.n}</td>${gk.map(g => `<td>${f.cnt[g] ? `<b style="color:${GROUPS[g].c}">${f.cnt[g]}</b> <span class="muted small">(${pct(f.cnt[g], f.n)}%)</span>` : '<span class="muted">—</span>'}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  return `
+    <div class="card"><h3>${t('tr_daily')}${help('h_tr_daily')}</h3>${line}</div>
+    <div class="grid-2 mt">
+      <div class="card"><h3>${t('tr_hours')}${help('h_tr_hours')}</h3>${bars}</div>
+      <div class="card" style="overflow:auto"><h3>${t('tr_reasons')}${help('h_tr_reasons')}</h3>${table}</div>
+    </div>`;
 }
 
 // ---------- eksport CSV / XLSX / PDF i ZIP zdjęć ----------
@@ -872,6 +1023,7 @@ async function settings(view) {
       { id: 'bio', label: t('bio_title'), color: '#7C3AED', tip: t('h_bio_section') },
       { id: 'targets', label: t('targets'), color: '#DB2777', tip: t('h_targets') },
       { id: 'notify', label: t('st_notify'), color: '#0891B2', tip: t('h_st_notify') },
+      { id: 'crm', label: t('st_crm'), color: '#16A34A', tip: t('h_st_crm') },
       { id: 'demo', label: t('demo_section'), color: '#64748B', tip: t('h_st_demo') },
     ], state.setTab)}
     <div class="grid-2">
@@ -892,6 +1044,17 @@ async function settings(view) {
           ${num('sessionMin', 's_sessionMin')}${num('repSessionH', 's_repSessionH')}
           ${num('notifyQueue', 's_notifyQueue')}${num('notifyDueH', 's_notifyDueH')}`)}
           ${chk('notifyBrowser')}`)}
+        ${sec('crm', `<h3>${t('st_crm')}${help('h_st_crm')}</h3>
+          <div class="field"><label>${t('wh_url')}${help('h_wh_url')}</label><input name="whUrl" type="url" placeholder="https://…" value="${esc(s.whUrl || '')}"></div>
+          <div class="field"><label>${t('wh_token')}${help('h_wh_token')}</label><input name="whToken" type="password" autocomplete="off" value="${esc(s.whToken || '')}"></div>
+          <label>${t('wh_events')}${help('h_wh_events')}</label>
+          ${['visit.submitted', 'visit.decided', 'assignment.created'].map(ev => `<label style="display:flex;gap:8px;align-items:center;font-weight:400;margin:4px 0"><input type="checkbox" name="whEvents" value="${ev}" ${(s.whEvents || []).includes(ev) ? 'checked' : ''}> <code>${ev}</code> — ${t('ev_' + ev.replace('.', '_'))}</label>`).join('')}
+          <div class="toolbar mt">
+            <button type="button" class="btn" id="whTest" ${tip('h_wh_test')}>${t('wh_test')}</button>
+            <button type="button" class="btn" id="jsonExport" ${tip('h_json_export')}>⬇ ${t('json_export')}</button>
+          </div>
+          <div id="whLog"></div>
+          <p class="muted small">${t('crm_note')}</p>`)}
         ${sec('demo', `<h3>${t('demo_section')}</h3>${chk('demoGps')}`)}
         <div class="toolbar mt" style="margin-bottom:0"><button class="btn btn-primary">${t('save')}</button></div>
       </form>
@@ -918,11 +1081,27 @@ async function settings(view) {
     out.demoGps = f.get('demoGps') === 'on';
     for (const k of ['sessionMin', 'repSessionH', 'notifyQueue', 'notifyDueH']) out[k] = Math.max(1, Number(f.get(k)));
     out.notifyBrowser = f.get('notifyBrowser') === 'on';
+    out.whUrl = String(f.get('whUrl') || '').trim(); out.whToken = String(f.get('whToken') || ''); out.whEvents = f.getAll('whEvents');
     if (out.notifyBrowser && 'Notification' in window && Notification.permission === 'default') await Notification.requestPermission();
     for (const k of ['bioPin', 'bioSig', 'bioTouch', 'bioToReview']) out[k] = f.get(k) === 'on';
     for (const k of ['bioPinTh', 'bioSigTh', 'bioTouchTh', 'bioPinEnroll', 'bioSigEnroll', 'bioTouchEnroll']) out[k] = Math.max(k.endsWith('Th') ? 0.5 : 2, Number(f.get(k)));
     await S.saveSettings(admin, out); toast(t('saved'));
   };
+  const paintLog = () => {
+    const log = S.webhookLog();
+    $('#whLog').innerHTML = log.length ? `<table class="small mt"><thead><tr><th>${t('audit_when')}</th><th>${t('wh_event')}</th><th>${t('col_status')}</th><th>ms</th></tr></thead>
+      <tbody>${log.slice(0, 10).map(l => `<tr><td>${fmtDateTime(l.ts)}</td><td><code>${esc(l.event)}</code></td>
+        <td class="${l.status === 'ok' ? 'ok' : l.status === 'sent' ? 'warn' : 'bad'}" ${tip('h_wh_status_' + l.status)}>${t('wh_st_' + l.status)}${l.code ? ' ' + l.code : ''}</td><td>${l.ms}</td></tr>`).join('')}</tbody></table>` : '';
+  };
+  paintLog();
+  $('#whTest').onclick = async () => {
+    $('#setForm').requestSubmit();
+    setTimeout(async () => {
+      if (!(await S.getSettings()).whUrl) return toast(t('wh_no_url'));
+      const r = await S.testWebhook(admin); toast(t('wh_st_' + r.status)); paintLog();
+    }, 100);
+  };
+  $('#jsonExport').onclick = async () => download(`fieldcheck_export_${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(await S.exportJson(admin), null, 2), 'application/json');
   $('#resetDemo').onclick = async () => { if (confirm(t('reset_confirm'))) { await S.resetDemo(); S.logout('admin'); location.reload(); } };
   $('#clearAll').onclick = async () => { if (confirm(t('clear_confirm'))) { await S.clearAll(); toast(t('saved')); render(); } };
 }

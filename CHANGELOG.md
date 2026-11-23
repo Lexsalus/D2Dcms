@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.0 — 2026-11-23
+
+Etap 3:
+
+- **Rola Manager:** logowanie do panelu, zespół handlowców; widzi pulpit, kolejkę weryfikacji i raporty tylko swojego
+  zespołu, podejmuje decyzje; bez eksportu, pobierania zdjęć, przypisywania i ustawień (blokada także w warstwie danych).
+  Zarządzanie: *Handlowcy → Managerowie*. Demo: `manager@fieldcheck.demo` / `demo1234`.
+- **Trasy:** w aplikacji „Trasa na dziś” — nieodwiedzone adresy w kolejności najkrótszego przejścia (najbliższy sąsiad + 2-opt),
+  numerowane pinezki, długość trasy, nawigacja Google Maps z punktami pośrednimi. W panelu — zrealizowana trasa
+  handlowca w wybranym dniu (kolejność wysłania, punkty GPS, km, godziny).
+- **Raporty zaawansowane:** zakładka Trendy — wizyty dziennie wg handlowca, godziny wysyłania wizyt, powody oznaczeń wg handlowca.
+- **Integracja z CRM:** webhooki (`visit.submitted`, `visit.decided`, `assignment.created`) z tokenem i dziennikiem dostaw,
+  eksport JSON (schema 1), import adresów z JSON z `external_id`. Opis: `docs/INTEGRACJA.md`.
+
 ## 0.4.0 — 2026-11-23
 
 - Pulpit: filtr statusu (obok okresu i handlowca).
