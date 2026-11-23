@@ -3,7 +3,12 @@
 Projekt: `qbtbquzylmgheaqlljhg` · adres API: `https://qbtbquzylmgheaqlljhg.supabase.co`
 Klucz publiczny (publishable) jest w [`assets/js/config.js`](../assets/js/config.js). **Klucza secret / service_role nie umieszczamy w repo ani w przeglądarce.**
 
-## Kroki
+## Stan
+
+2026-11-23: projekt wyczyszczony (poprzednie tabele, funkcje i konta usunięte), uruchomione `00_reset.sql` i `01_schema.sql`,
+publiczna rejestracja wyłączona. Sprawdzone: klucz publiczny bez logowania nie widzi żadnych danych (RLS).
+
+## Kroki (od zera)
 
 1. **SQL Editor → `supabase/00_reset.sql`** — czyści schemat `public` (tabele, widoki, funkcje, typy).
    Obiekty rozszerzeń zostają. Użytkowników logowania i pliki w Storage czyści się ręcznie w panelu.

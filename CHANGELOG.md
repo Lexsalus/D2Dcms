@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.2 — 2026-11-23
+
+- Projekt Supabase przygotowany: wyczyszczony, schemat FieldCheck uruchomiony, rejestracja wyłączona (`docs/SUPABASE.md` → Stan).
+
 ## 0.5.1 — 2026-11-23
 
 - Supabase: `supabase/00_reset.sql` (czyszczenie schematu) i `supabase/01_schema.sql` — tabele, RLS, funkcje RPC,
