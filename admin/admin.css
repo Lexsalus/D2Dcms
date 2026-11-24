@@ -147,3 +147,10 @@
 .chart .grid { stroke: var(--border); stroke-width: 1; }
 .chart .ax { fill: var(--muted); font-size: 11px; font-family: var(--font); }
 .legend.inline { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; }
+
+/* Rodzaje spraw */
+.case-row { border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-bottom: 10px; background: var(--surface-2); }
+.case-row-top { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.case-row-top input[name=caseName] { flex: 1; }
+.case-row-top input[type=color] { width: 42px; height: 36px; padding: 2px; }
+.case-row textarea { width: 100%; }

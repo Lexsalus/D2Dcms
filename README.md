@@ -81,7 +81,7 @@ assets/js/
   domain/                  verify (reguły kontroli), biometrics, route (trasy, rejony), integration (CRM)
   data/                    data.js (wybór trybu), store.js (demo), store-sb.js (Supabase)
 assets/css/base.css        wspólne style, paleta, statusy, pod-zakładki, tooltipy
-supabase/                  00_reset … 03_pin.sql, functions/admin-users i rep-login (Edge Functions)
+supabase/                  00_reset … 04_case_type.sql, functions/admin-users i rep-login (Edge Functions)
 tests/                     testy reguł i biometrii (Node), e2e na Supabase (Edge/Chrome), dane testowe (seed)
 docs/                      dokumentacja techniczna
 ```

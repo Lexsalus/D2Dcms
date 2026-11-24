@@ -2,6 +2,7 @@
 import { t, applyDom, onLangChange, fmtDate, fmtTime, fmtDateTime } from '../../../assets/js/core/i18n.js';
 import { mountControls, versionLabel, esc, toast, badge, addrLine, tip, help, subtabs, wireSubtabs } from '../../../assets/js/core/ui.js';
 import S from '../../../assets/js/data/data.js';
+import { caseChip, caseInfo } from '../../../assets/js/domain/cases.js';
 import { $, screen, user, setUser, nav, go, flow, ui, render, setRender, bar } from '../core.js';
 import { touchRecorder } from '../../../assets/js/domain/biometrics.js';
 
@@ -16,6 +17,7 @@ export async function detailScreen() {
   screen.innerHTML = `
     <div class="card">
       <div class="big-addr">${esc(addrLine(p))}</div>
+      ${caseChip(p.case_type, (await S.getSettings()).caseTypes || [], esc)}
       <div class="muted">${esc(p.zip)} ${esc(p.city)}</div>
       <p>${badge(a.status)} ${a.due ? `<span class="muted"> · ${t('due', { d: fmtDate(a.due) })}</span>` : ''}</p>
       ${p.notes ? `<p class="small">${esc(p.notes)}</p>` : ''}

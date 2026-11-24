@@ -2,12 +2,15 @@
 import { t, applyDom, onLangChange, fmtDate, fmtTime, fmtDateTime } from '../../../assets/js/core/i18n.js';
 import { mountControls, versionLabel, esc, toast, modal, badge, addrLine, download, tip, help, subtabs, wireSubtabs } from '../../../assets/js/core/ui.js';
 import S from '../../../assets/js/data/data.js';
+import { caseChip } from '../../../assets/js/domain/cases.js';
 import { $, admin, setAdmin, flags, render, setRender, state, ROUTES, SECTION, GROUPS, groupOf, routesFor, canExport, repName, pct, periodStart, data, STATUS_FILTER, statusMatch, filters, wireFilters, localDay, reasonText, debounce } from '../core.js';
 import { sigSvg } from '../../../assets/js/domain/biometrics.js';
 import { zipPhotos } from '../lib/export.js';
 
 // ---------- DO WERYFIKACJI ----------
+let caseTypesCache = [];
 export async function review(view) {
+  caseTypesCache = (await S.getSettings()).caseTypes || [];
   const { asg, latest } = await data();
   const all = asg.filter(a => a.status === 'TO_REVIEW').map(a => latest.get(a.id)).filter(Boolean)
     .sort((a, b) => a.submittedAt - b.submittedAt);
@@ -115,6 +118,7 @@ export function renderDecision(el, v) {
     <h3>${t('decision')}</h3>
     <dl class="kv">
       <dt>${t('col_address')}</dt><dd>${esc(addrLine(p))}</dd>
+      ${p.case_type ? `<dt>${t('case_type')}</dt><dd>${caseChip(p.case_type, caseTypesCache, esc)}</dd>` : ''}
       <dt>${t('col_rep')}</dt><dd>${esc(repName(v.userId))}</dd>
       <dt>${t('visit')}</dt><dd>${fmtDateTime(v.submittedAt)}</dd>
       <dt>${t('outcome')}</dt><dd>${v.outcome ? t('out_' + v.outcome) : '—'}</dd>

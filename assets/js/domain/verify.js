@@ -17,6 +17,7 @@ export const DEFAULT_SETTINGS = {
   notifyQueue: 5,     // powiadom, gdy w kolejce ≥ tylu wizyt
   notifyDueH: 24,     // powiadom o terminach w ciągu tylu godzin
   notifyBrowser: false,
+  caseTypes: [],       // rodzaje spraw: [{name, color, guide}]
   // progi kolorowania raportów
   targetPlan: 90,     // % realizacji planu
   targetAuto: 85,     // % auto-weryfikacji

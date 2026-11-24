@@ -2,6 +2,7 @@
 import { t, applyDom, onLangChange, fmtDate, fmtTime, fmtDateTime } from '../../../assets/js/core/i18n.js';
 import { mountControls, versionLabel, esc, toast, modal, badge, addrLine, download, tip, help, subtabs, wireSubtabs } from '../../../assets/js/core/ui.js';
 import S from '../../../assets/js/data/data.js';
+import { CASE_PALETTE } from '../../../assets/js/domain/cases.js';
 import { $, admin, setAdmin, flags, render, setRender, state, ROUTES, SECTION, GROUPS, groupOf, routesFor, canExport, repName, pct, periodStart, data, STATUS_FILTER, statusMatch, filters, wireFilters, localDay, reasonText, debounce } from '../core.js';
 
 // ---------- USTAWIENIA ----------
@@ -16,6 +17,7 @@ export async function settings(view) {
   view.innerHTML = `
     ${subtabs([
       { id: 'verify', label: t('thresholds'), color: '#F59E0B', tip: t('h_st_verify') },
+      { id: 'cases', label: t('case_types'), color: '#DC2626', count: (s.caseTypes || []).length, tip: t('h_case_types') },
       { id: 'bio', label: t('bio_title'), color: '#7C3AED', tip: t('h_bio_section') },
       { id: 'targets', label: t('targets'), color: '#DB2777', tip: t('h_targets') },
       { id: 'notify', label: t('st_notify'), color: '#0891B2', tip: t('h_st_notify') },
@@ -52,6 +54,10 @@ export async function settings(view) {
           </div>
           <div id="whLog"></div>
           <p class="muted small">${t('crm_note')}</p>`)}
+        ${sec('cases', `<h3>${t('case_types')}${help('h_case_types')}</h3>
+          <p class="muted small">${t('case_types_info')}</p>
+          <div id="caseRows">${(s.caseTypes || []).map(caseRow).join('')}</div>
+          <button type="button" class="btn" id="addCase" ${tip('h_add_case')}>+ ${t('add_case')}</button>`)}
         ${sec('demo', `<h3>${t('demo_section')}</h3>${chk('demoGps')}`)}
         <div class="toolbar mt" style="margin-bottom:0"><button class="btn btn-primary">${t('save')}</button></div>
       </form>
@@ -65,6 +71,9 @@ export async function settings(view) {
         </div>`}
       </div>
     </div>`;
+  const wireCaseRows = () => view.querySelectorAll('[data-delcase]').forEach(b => b.onclick = () => b.closest('.case-row').remove());
+  wireCaseRows();
+  $('#addCase').onclick = () => { $('#caseRows').insertAdjacentHTML('beforeend', caseRow({ name: '', color: CASE_PALETTE[$('#caseRows').children.length % CASE_PALETTE.length], guide: '' })); wireCaseRows(); $('#caseRows .case-row:last-child input[name=caseName]').focus(); };
   wireSubtabs(view, id => {
     state.setTab = id;
     view.querySelectorAll('.subtab').forEach(b => b.classList.toggle('active', b.dataset.sub === id));
@@ -74,6 +83,9 @@ export async function settings(view) {
     e.preventDefault();
     const f = new FormData(e.target);
     const out = {};
+    // rodzaje spraw: wiersze formularza → lista {name, color, guide}
+    const names = f.getAll('caseName'), colors = f.getAll('caseColor'), guides = f.getAll('caseGuide');
+    out.caseTypes = names.map((n, i) => ({ name: String(n).trim(), color: colors[i], guide: String(guides[i] || '').trim().slice(0, 1000) })).filter(c => c.name);
     for (const k of ['streetMin', 'gpsMax', 'gpsAcc', 'gapMax', 'dueTol', 'phashMax', 'cameraAge', 'retentionDays', 'targetPlan', 'targetAuto', 'targetRejected', 'targetReviewH']) out[k] = Number(f.get(k));
     out.demoGps = f.get('demoGps') === 'on';
     for (const k of ['sessionMin', 'repSessionH', 'notifyQueue', 'notifyDueH']) out[k] = Math.max(1, Number(f.get(k)));
@@ -104,3 +116,14 @@ export async function settings(view) {
   if ($('#clearAll')) $('#clearAll').onclick = async () => { if (confirm(t('clear_confirm'))) { await S.clearAll(); toast(t('saved')); render(); } };
 }
 
+// Wiersz rodzaju sprawy: nazwa (jak w pliku z Excela), kolor etykiety, wskazówki dla handlowca
+function caseRow(c) {
+  return `<div class="case-row">
+    <div class="case-row-top">
+      <input type="color" name="caseColor" value="${esc(c.color || '#64748B')}" ${tip('h_case_color')}>
+      <input name="caseName" value="${esc(c.name)}" placeholder="${t('case_name_ph')}" ${tip('h_case_name')}>
+      <button type="button" class="btn btn-ghost" data-delcase ${tip('h_del_case')}>✕</button>
+    </div>
+    <textarea name="caseGuide" rows="3" maxlength="1000" placeholder="${t('case_guide_ph')}" ${tip('h_case_guide')}>${esc(c.guide || '')}</textarea>
+  </div>`;
+}

@@ -701,3 +701,44 @@ extend('uk', {
   need_both_photos: 'Зробіть обидва фото, виберіть результат і надішліть.', need_photo: 'Зробіть фото, виберіть результат і надішліть.',
   need_photo_building: 'Спочатку фото під’їзду / будинку', need_photo_door: 'Бракує фото дверей', photo_saving: 'Зберігаю фото…', sending: 'Надсилаю…',
 });
+
+// ---------- 0.8: rodzaj sprawy ----------
+extend('pl', {
+  case_type: 'Rodzaj sprawy', all_case_types: 'Wszystkie rodzaje spraw', template: 'Wzór pliku', case_types: 'Rodzaje spraw', add_case: 'Dodaj rodzaj sprawy',
+  case_new_types: 'Nowe rodzaje spraw z pliku: {n} — uzupełnij wskazówki w Ustawieniach → Rodzaje spraw',
+  case_types_info: 'Rodzaje spraw przychodzą z kolumny „rodzaj_sprawy” w imporcie. Tutaj nadajesz im kolor i wskazówki, które handlowiec zobaczy po wejściu w adres.',
+  case_name_ph: 'np. Egzekucja', case_guide_ph: 'Co handlowiec ma wiedzieć i mówić przy tym rodzaju sprawy…', case_what_to_say: 'co mówić — dotknij, aby zwinąć',
+  import_help: 'Kolumny: ulica, nr_budynku, nr_lokalu, kod, miasto, rodzaj_sprawy, uwagi (opcjonalnie lat, lng, id_crm). Pierwszy wiersz to nagłówki — pobierz „Wzór pliku”.',
+  h_case_type: 'Np. egzekucja, kredyt, ponaglenie, korespondencja — z kolumny „rodzaj_sprawy” w Excelu. Handlowiec widzi go na liście i w wizycie razem ze wskazówkami.',
+  h_case_filter: 'Pokaż tylko adresy wybranego rodzaju sprawy.', h_template: 'Pobierz przykładowy plik CSV z nagłówkami (otworzysz i uzupełnisz w Excelu).',
+  h_case_types: 'Kolor i wskazówki „co mówić” dla każdego rodzaju sprawy.', h_add_case: 'Dodaj rodzaj sprawy ręcznie (nowe z importu dodają się same).',
+  h_case_color: 'Kolor etykiety na liście i w wizycie.', h_case_name: 'Nazwa musi być taka jak w kolumnie „rodzaj_sprawy” w pliku (wielkość liter bez znaczenia).',
+  h_del_case: 'Usuń z listy (adresy zachowują swój rodzaj sprawy).', h_case_guide: 'Krótko i konkretnie — handlowiec czyta to przed rozmową. Do 1000 znaków.',
+  h_case_box: 'Rodzaj sprawy tego adresu i wskazówki od administratora.',
+});
+extend('en', {
+  case_type: 'Case type', all_case_types: 'All case types', template: 'File template', case_types: 'Case types', add_case: 'Add case type',
+  case_new_types: 'New case types from the file: {n} — fill in the guidance in Settings → Case types',
+  case_types_info: 'Case types come from the “rodzaj_sprawy” (case type) column in the import. Here you give them a colour and guidance the rep sees when opening the address.',
+  case_name_ph: 'e.g. Enforcement', case_guide_ph: 'What the rep should know and say for this case type…', case_what_to_say: 'what to say — tap to collapse',
+  import_help: 'Columns: street, building_no, unit_no, postcode, city, case_type, notes (optionally lat, lng, crm_id). First row is headers — download the “File template”.',
+  h_case_type: 'E.g. enforcement, loan, reminder, correspondence — from the case type column in Excel. The rep sees it in the list and in the visit with guidance.',
+  h_case_filter: 'Show only addresses of the selected case type.', h_template: 'Download a sample CSV file with headers (open and fill it in Excel).',
+  h_case_types: 'Colour and “what to say” guidance for each case type.', h_add_case: 'Add a case type manually (new ones from imports are added automatically).',
+  h_case_color: 'Label colour in the list and the visit.', h_case_name: 'The name must match the case type column in the file (case-insensitive).',
+  h_del_case: 'Remove from the list (addresses keep their case type).', h_case_guide: 'Short and specific — the rep reads it before the conversation. Up to 1000 characters.',
+  h_case_box: 'This address’s case type and guidance from the administrator.',
+});
+extend('uk', {
+  case_type: 'Тип справи', all_case_types: 'Усі типи справ', template: 'Шаблон файлу', case_types: 'Типи справ', add_case: 'Додати тип справи',
+  case_new_types: 'Нові типи справ з файлу: {n} — доповніть підказки в Налаштуваннях → Типи справ',
+  case_types_info: 'Типи справ надходять зі стовпця «rodzaj_sprawy» (тип справи) в імпорті. Тут ви задаєте їм колір і підказки, які представник побачить, відкривши адресу.',
+  case_name_ph: 'напр. Виконавче провадження', case_guide_ph: 'Що представник має знати й говорити для цього типу справи…', case_what_to_say: 'що говорити — торкніться, щоб згорнути',
+  import_help: 'Стовпці: вулиця, номер будинку, номер квартири, індекс, місто, тип справи, примітки (необов’язково lat, lng, id_crm). Перший рядок — заголовки; завантажте «Шаблон файлу».',
+  h_case_type: 'Напр. виконавче провадження, кредит, нагадування, кореспонденція — зі стовпця типу справи в Excel. Представник бачить його в списку й у візиті разом із підказками.',
+  h_case_filter: 'Показати лише адреси вибраного типу справи.', h_template: 'Завантажити приклад CSV із заголовками (відкриєте й заповните в Excel).',
+  h_case_types: 'Колір і підказки «що говорити» для кожного типу справи.', h_add_case: 'Додати тип справи вручну (нові з імпорту додаються самі).',
+  h_case_color: 'Колір мітки в списку та у візиті.', h_case_name: 'Назва має збігатися зі стовпцем типу справи у файлі (регістр не важливий).',
+  h_del_case: 'Видалити зі списку (адреси зберігають свій тип справи).', h_case_guide: 'Коротко й конкретно — представник читає це перед розмовою. До 1000 символів.',
+  h_case_box: 'Тип справи цієї адреси та підказки від адміністратора.',
+});

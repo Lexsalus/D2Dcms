@@ -77,12 +77,20 @@ if (own) { own.pin = pin(); await rest('POST', 'rpc/fc_set_pin', { p_user: own.i
 const streets = [['Poznańska', 51.7680, 18.0865], ['Górnośląska', 51.7535, 18.0985], ['Śródmiejska', 51.7618, 18.0905], ['Wrocławska', 51.7520, 18.0790], ['Zamkowa', 51.7628, 18.0880],
   ['Częstochowska', 51.7560, 18.1010], ['Babina', 51.7605, 18.0870], ['Złota', 51.7640, 18.0915], ['Majkowska', 51.7700, 18.1040], ['Kościuszki', 51.7590, 18.0930]];
 const props = [];
+const CASES = [{ name: 'Egzekucja', color: '#DC2626' }, { name: 'Kredyt', color: '#2F6FED' }, { name: 'Ponaglenie', color: '#F59E0B' }, { name: 'Korespondencja', color: '#0E9F8E' }]
+  .map(c => ({ ...c, guide: `Przykładowe wskazówki (dane testowe) dla: ${c.name}.` }));
 for (let i = 0; i < 53; i++) {
   const [street, lat, lng] = streets[i % streets.length];
   props.push({ external_id: `TEST-${String(i + 1).padStart(3, '0')}`, street, building: String(2 + Math.floor(i / 10) * 4 + Math.floor(rnd() * 3)), unit: String(1 + Math.floor(rnd() * 30)),
-    zip: '62-800', city: 'Kalisz', lat: +(lat + (rnd() - .5) * .004).toFixed(6), lng: +(lng + (rnd() - .5) * .006).toFixed(6), notes: 'dane testowe', created_by: adminId });
+    zip: '62-800', city: 'Kalisz', lat: +(lat + (rnd() - .5) * .004).toFixed(6), lng: +(lng + (rnd() - .5) * .006).toFixed(6), notes: 'dane testowe', case_type: CASES[i % CASES.length].name, created_by: adminId });
 }
 const P = await rest('POST', 'properties', props, { Prefer: 'return=representation' });
+{ // przykładowe rodzaje spraw w ustawieniach (bez nadpisywania istniejących)
+  const [st] = await rest('GET', 'settings?id=eq.1&select=data');
+  const have = new Set((st?.data?.caseTypes || []).map(c => c.name.toLowerCase()));
+  const caseTypes = [...(st?.data?.caseTypes || []), ...CASES.filter(c => !have.has(c.name.toLowerCase()))];
+  await rest('PATCH', 'settings?id=eq.1', { data: { ...(st?.data || {}), caseTypes } });
+}
 
 // ---------- przypisania i wizyty ----------
 const now = Date.now();

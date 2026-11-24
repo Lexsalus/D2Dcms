@@ -4,8 +4,10 @@ import { mountControls, versionLabel, esc, toast, modal, badge, addrLine, downlo
 import S from '../../../assets/js/data/data.js';
 import { $, admin, setAdmin, flags, render, setRender, state, ROUTES, SECTION, GROUPS, groupOf, routesFor, canExport, repName, pct, periodStart, data, STATUS_FILTER, statusMatch, filters, wireFilters, localDay, reasonText, debounce } from '../core.js';
 import { importFile, geocode, cleanStreet } from '../lib/import.js';
+import { caseChip, caseKey, mergeCaseTypes } from '../../../assets/js/domain/cases.js';
 
 // ---------- NIERUCHOMOŚCI ----------
+let caseNamesCache = []; // znane rodzaje spraw (podpowiedzi w formularzu adresu)
 export async function properties(view) {
   $('#pageTitle').textContent = t('props_title');
   const { props, reps } = await data();
@@ -13,9 +15,10 @@ export async function properties(view) {
     if (state.propFilter === 'unassigned' && a) return false;
     if (state.propFilter === 'assigned' && !a) return false;
     if (state.rep && a?.userId !== state.rep) return false;
+    if (state.caseFilter && caseKey(p.case_type) !== state.caseFilter) return false;
     if (state.propSearch) {
       const q = state.propSearch.toLowerCase();
-      if (!`${p.street} ${p.building} ${p.unit} ${p.city} ${p.zip}`.toLowerCase().includes(q)) return false;
+      if (!`${p.street} ${p.building} ${p.unit} ${p.city} ${p.zip} ${p.case_type || ''}`.toLowerCase().includes(q)) return false;
     }
     return true;
   });
@@ -27,6 +30,8 @@ export async function properties(view) {
   const defDue = state.due || today.toISOString().slice(0, 10);
 
   const nAssigned = props.filter(p => S.assignmentFor(p.id)).length;
+  const caseTypes = (await S.getSettings()).caseTypes || [];
+  const caseNames = [...new Set([...caseTypes.map(c => c.name), ...props.map(p => p.case_type).filter(Boolean)].map(x => x.trim()))];
   view.innerHTML = `
     ${subtabs([
       { id: 'all', label: t('filter_all'), count: props.length, color: '#64748B', tip: t('h_prop_filter') },
@@ -37,8 +42,10 @@ export async function properties(view) {
       <label class="btn btn-primary" style="margin:0" ${tip('h_import')}>${t('import_file')}<input type="file" id="importFile" accept=".csv,.txt,.xlsx,.xls,.json" hidden></label>
       <button class="btn" id="addAddr" ${tip('h_add_address')}>+ ${t('add_address')}</button>
       ${filters(false)}
+      ${caseNames.length ? `<select id="caseFilter" ${tip('h_case_filter')}><option value="">${t('all_case_types')}</option>${caseNames.map(n => `<option value="${esc(caseKey(n))}" ${state.caseFilter === caseKey(n) ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>` : ''}
       <input id="pSearch" ${tip('h_search')} placeholder="${t('search')}" value="${esc(state.propSearch)}">
       <span class="spacer"></span>
+ <button class="btn btn-ghost" id="tplCsv" ${tip('h_template')}>⬇ ${t('template')}</button>
       <button class="btn btn-ghost" id="delSel" ${tip('h_delete')} ${state.selected.size ? '' : 'disabled'}>${t('delete')}</button>
     </div>
     <div class="props-layout">
@@ -47,17 +54,17 @@ export async function properties(view) {
         <table>
           <thead><tr>
             <th style="width:34px"><input type="checkbox" id="selAll" ${tip('h_select_all')}></th>
-            <th>${t('col_address')}</th><th>${t('col_unit')}</th><th>${t('col_city')}</th><th>${t('col_rep')}</th><th>${t('col_due')}</th><th>${t('col_status')}</th>
+            <th>${t('col_address')}</th><th>${t('col_unit')}</th><th>${t('case_type')}${help('h_case_type')}</th><th>${t('col_city')}</th><th>${t('col_rep')}</th><th>${t('col_due')}</th><th>${t('col_status')}</th>
           </tr></thead>
           <tbody>${rows.map(({ p, a }) => `
             <tr>
               <td><input type="checkbox" data-id="${p.id}" ${state.selected.has(p.id) ? 'checked' : ''}></td>
               <td>ul. ${esc(p.street)} ${esc(p.building)}${p.lat == null ? ` <span class="warn" ${tip('h_no_geo')}>⚠</span>` : ''}</td>
-              <td>${esc(p.unit || '—')}</td><td>${esc(p.zip)} ${esc(p.city)}</td>
+              <td>${esc(p.unit || '—')}</td><td>${caseChip(p.case_type, caseTypes, esc) || '<span class="muted">—</span>'}</td><td>${esc(p.zip)} ${esc(p.city)}</td>
               <td>${a ? esc(repName(a.userId)) : `<span class="muted">${t('st_UNASSIGNED').toLowerCase()}</span>`}</td>
               <td>${a?.due ? fmtDate(a.due) : '—'}</td>
               <td>${a ? badge(a.status) : ''}</td>
-            </tr>`).join('') || `<tr><td colspan="7" class="muted">${t('no_data')}</td></tr>`}
+            </tr>`).join('') || `<tr><td colspan="8" class="muted">${t('no_data')}</td></tr>`}
           </tbody>
         </table>
         </div>
@@ -81,6 +88,11 @@ export async function properties(view) {
 
   await wireFilters(view);
   wireSubtabs(view, id => { state.propFilter = id; render(); });
+  const cf = $('#caseFilter'); if (cf) cf.onchange = () => { state.caseFilter = cf.value; render(); };
+  $('#tplCsv').onclick = () => download('fieldcheck_wzor_importu.csv', '\uFEFF' + [
+    'ulica;nr_budynku;nr_lokalu;kod;miasto;rodzaj_sprawy;uwagi;id_crm',
+    'Poznańska;20;16;62-800;Kalisz;Egzekucja;domofon nie działa;ABC-001',
+    'Złota;5;;62-800;Kalisz;Korespondencja;;ABC-002'].join('\r\n'), 'text/csv');
   $('#pSearch').oninput = debounce(e => { state.propSearch = e.target.value; render().then(() => { const s = $('#pSearch'); s.focus(); s.setSelectionRange(s.value.length, s.value.length); }); }, 250);
   $('#dueDate').onchange = e => { state.due = e.target.value; };
   view.querySelectorAll('tbody input[type=checkbox]').forEach(cb => cb.onchange = () => {
@@ -115,6 +127,7 @@ export async function properties(view) {
     const r = await S.deleteProperties(admin, [...state.selected]); state.selected.clear();
     if (r.blocked) toast(t('cant_reassign')); render();
   };
+  caseNamesCache = caseNames;
   $('#addAddr').onclick = addAddressModal;
   $('#importFile').onchange = e => importFile(e.target.files[0]);
 }
@@ -130,6 +143,8 @@ function addAddressModal() {
         <div class="field"><label>${t('zip')}</label><input name="zip"></div>
         <div class="field"><label>${t('city')}</label><input name="city" required></div>
       </div>
+      <div class="field"><label>${t('case_type')}${help('h_case_type')}</label><input name="case_type" list="caseList">
+        <datalist id="caseList">${caseNamesCache.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
       <div class="field"><label>${t('notes')}</label><input name="notes"></div>
       <div class="toolbar" style="justify-content:flex-end;margin:0">
         <button type="button" class="btn" data-x>${t('cancel')}</button><button class="btn btn-primary">${t('save')}</button>
@@ -142,6 +157,8 @@ function addAddressModal() {
     p.street = cleanStreet(p.street);
     try {
       const rec = await S.addProperty(admin, { ...p, lat: null, lng: null });
+      const st = await S.getSettings(), merged = mergeCaseTypes(st.caseTypes || [], [p.case_type]);
+      if (merged) await S.saveSettings(admin, { caseTypes: merged });
       m.close(); render();
       const g = await geocode(rec);
       if (g) { await S.updateProperty(rec.id, g); render(); }

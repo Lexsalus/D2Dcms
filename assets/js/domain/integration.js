@@ -31,6 +31,7 @@ export function visitRecord(v, p, a, user) {
   return {
     id: v.id,
     external_id: p?.external_id || null,
+    case_type: p?.case_type || null,
     property: p ? { id: p.id, street: p.street, building: p.building, unit: p.unit || null, zip: p.zip, city: p.city, lat: p.lat, lng: p.lng } : null,
     assignment: a ? { id: a.id, due: a.due || null, status: a.status } : null,
     rep: user ? { id: user.id, name: user.name } : null,

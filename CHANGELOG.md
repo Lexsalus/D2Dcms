@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.0 — 2026-11-24
+
+**Rodzaj sprawy** — handlowiec od razu widzi, z jaką sprawą idzie pod adres:
+- import z Excela/CSV czyta kolumnę `rodzaj_sprawy` (też „rodzaj sprawy”, „typ sprawy”, „kategoria”…); nowe rodzaje dopisują się same;
+- *Ustawienia → Rodzaje spraw*: kolor etykiety i wskazówki „co mówić” dla każdego rodzaju;
+- aplikacja: kolorowa etykieta na liście i w szczegółach, na ekranie wizyty rozwinięte wskazówki;
+- panel: kolumna i filtr *Rodzaj sprawy* w Nieruchomościach, pole w formularzu adresu, etykieta w Weryfikacji;
+- przycisk *Wzór pliku* — przykładowy CSV z nagłówkami do uzupełnienia w Excelu;
+- `case_type` w eksporcie JSON, rekordzie wizyty i webhooku CRM (`supabase/04_case_type.sql`).
+
 ## 0.7.0 — 2026-11-24
 
 **Prostszy ekran wizyty w aplikacji** — kliknięcie adresu od razu otwiera wizytę na jednym ekranie:

@@ -153,3 +153,10 @@ body { background: var(--bg); }
 .outcomes.grid2 .outcome { min-height: 58px; text-align: center; font-size: 15px; }
 .send-btn { margin-top: 16px; min-height: 58px; font-size: 18px; }
 .center { text-align: center; }
+
+/* Rodzaj sprawy i wskazówki dla handlowca */
+.case-box { margin: 4px 0 10px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--c) 40%, transparent); background: color-mix(in srgb, var(--c) 7%, var(--surface)); padding: 8px 12px; }
+.case-box summary { cursor: pointer; display: flex; align-items: center; gap: 8px; list-style: none; }
+.case-box summary::-webkit-details-marker { display: none; }
+.case-guide { margin-top: 8px; font-size: 15px; line-height: 1.5; }
+.addr-card .case-chip { vertical-align: middle; margin-left: 4px; font-size: 11px; }

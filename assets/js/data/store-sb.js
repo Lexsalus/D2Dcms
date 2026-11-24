@@ -295,7 +295,7 @@ export async function repAction(admin, id, action) {
 
 // ---------- adresy i przypisania ----------
 const keyOf = p => [p.street, p.building, p.unit, p.city].map(x => String(x || '').trim().toLowerCase()).join('|');
-const propRow = p => ({ street: p.street, building: p.building, unit: p.unit || null, zip: p.zip || null, city: p.city, notes: p.notes || null, lat: p.lat ?? null, lng: p.lng ?? null, external_id: p.external_id || null, created_by: me.id });
+const propRow = p => ({ street: p.street, building: p.building, unit: p.unit || null, zip: p.zip || null, city: p.city, notes: p.notes || null, lat: p.lat ?? null, lng: p.lng ?? null, external_id: p.external_id || null, case_type: p.case_type || null, created_by: me.id });
 export async function addProperty(admin, p) {
   if (C.properties.some(x => keyOf(x) === keyOf(p))) throw new Error('duplicate_address');
   const rec = must(await sb.from('properties').insert(propRow(p)).select().single());
@@ -501,7 +501,7 @@ export async function exportJson(admin) {
   await logEvent(admin, 'export', 'JSON (CRM)');
   return {
     schema: SCHEMA_VERSION, source: 'fieldcheck', exportedAt: new Date().toISOString(),
-    properties: C.properties.map(p => ({ id: p.id, external_id: p.external_id || null, street: p.street, building: p.building, unit: p.unit || null, zip: p.zip, city: p.city, lat: p.lat, lng: p.lng, notes: p.notes || null })),
+    properties: C.properties.map(p => ({ id: p.id, external_id: p.external_id || null, case_type: p.case_type || null, street: p.street, building: p.building, unit: p.unit || null, zip: p.zip, city: p.city, lat: p.lat, lng: p.lng, notes: p.notes || null })),
     reps: C.users.filter(u => u.role === 'rep').map(u => ({ id: u.id, name: u.name, email: u.email || null, active: u.active })),
     assignments: C.assignments.map(a => ({ id: a.id, property_id: a.propertyId, rep_id: a.userId, due: a.due || null, status: a.status })),
     visits: C.visits.filter(v => v.submittedAt).map(v => visitRecord(v, getProperty(v.propertyId), C.assignments.find(a => a.id === v.assignmentId), getUser(v.userId))),

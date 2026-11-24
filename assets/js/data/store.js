@@ -492,7 +492,7 @@ export async function exportJson(admin) {
   audit(admin.id, 'export', 'JSON (CRM)'); save();
   return {
     schema: SCHEMA_VERSION, source: 'fieldcheck', exportedAt: new Date().toISOString(),
-    properties: db.properties.map(p => ({ id: p.id, external_id: p.external_id || null, street: p.street, building: p.building, unit: p.unit || null, zip: p.zip, city: p.city, lat: p.lat, lng: p.lng, notes: p.notes || null })),
+    properties: db.properties.map(p => ({ id: p.id, external_id: p.external_id || null, case_type: p.case_type || null, street: p.street, building: p.building, unit: p.unit || null, zip: p.zip, city: p.city, lat: p.lat, lng: p.lng, notes: p.notes || null })),
     reps: db.users.filter(u => u.role === 'rep').map(u => ({ id: u.id, name: u.name, email: u.email || null, active: u.active })),
     assignments: db.assignments.map(a => ({ id: a.id, property_id: a.propertyId, rep_id: a.userId, due: a.due || null, status: a.status })),
     visits: db.visits.filter(v => v.submittedAt).map(v => visitRecord(v, getProperty(v.propertyId), db.assignments.find(a => a.id === v.assignmentId), getUser(v.userId))),
@@ -509,6 +509,7 @@ export async function clearAll() {
 function seedData() {
   const d = empty();
   const now = Date.now();
+  d.settings.caseTypes = ['Egzekucja', 'Kredyt', 'Ponaglenie', 'Korespondencja'].map((name, i) => ({ name, color: ['#DC2626', '#2F6FED', '#F59E0B', '#0E9F8E'][i], guide: `Przykładowe wskazówki dla rodzaju „${name}” — treść ustala administrator w Ustawieniach → Rodzaje spraw.` }));
   const admin = { id: uid(), role: 'admin', name: 'Admin', email: DEMO_ADMIN.email, password: DEMO_ADMIN.password, active: true, sv: 0 };
   d.users.push(admin);
   const repNames = ['Anna K.', 'Piotr N.', 'Marta S.', 'Tomasz W.', 'Karol B.'];
@@ -531,7 +532,7 @@ function seedData() {
     const building = String(2 + Math.floor(i / streets.length) * 4 + Math.floor(rnd() * 3));
     const unit = String(1 + Math.floor(rnd() * 30));
     d.properties.push({
-      id: uid(), street, building, unit, zip: '62-800', city: 'Kalisz',
+      id: uid(), street, building, unit, zip: '62-800', city: 'Kalisz', case_type: ['Egzekucja', 'Kredyt', 'Ponaglenie', 'Korespondencja'][Math.floor(rnd() * 4)],
       lat: +(lat + (rnd() - .5) * .004).toFixed(6), lng: +(lng + (rnd() - .5) * .006).toFixed(6),
       notes: '', createdAt: now - 7 * 864e5,
     });

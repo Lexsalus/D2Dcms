@@ -2,6 +2,7 @@
 import { t, applyDom, onLangChange, fmtDate, fmtTime, fmtDateTime } from '../../../assets/js/core/i18n.js';
 import { mountControls, versionLabel, esc, toast, modal, badge, addrLine, download, tip, help, subtabs, wireSubtabs } from '../../../assets/js/core/ui.js';
 import S from '../../../assets/js/data/data.js';
+import { mergeCaseTypes } from '../../../assets/js/domain/cases.js';
 import { $, admin, setAdmin, flags, render, setRender, state, ROUTES, SECTION, GROUPS, groupOf, routesFor, canExport, repName, pct, periodStart, data, STATUS_FILTER, statusMatch, filters, wireFilters, localDay, reasonText, debounce } from '../core.js';
 
 export const cleanStreet = s => String(s || '').trim().replace(/^(ul\.?|ulica|al\.?|aleja)\s+/i, '');
@@ -17,6 +18,7 @@ const HEAD = {
   lat: ['lat', 'latitude', 'szerokosc'],
   lng: ['lng', 'lon', 'long', 'longitude', 'dlugosc'],
   external_id: ['external_id', 'id_crm', 'crm_id', 'externalid'],
+  case_type: ['rodzaj_sprawy', 'rodzaj sprawy', 'rodzaj', 'typ_sprawy', 'typ sprawy', 'sprawa', 'kategoria', 'case_type', 'case type', 'тип справи'],
 };
 export function mapHeaders(headers) {
   const idx = {};
@@ -69,10 +71,15 @@ export async function importFile(file) {
   const rows = table.slice(1).map(r => ({
     street: cleanStreet(get(r, 'street')), building: get(r, 'building'), unit: get(r, 'unit'),
     zip: get(r, 'zip'), city: get(r, 'city'), notes: get(r, 'notes'), external_id: get(r, 'external_id') || null,
+    case_type: get(r, 'case_type') || null,
     lat: get(r, 'lat') ? parseFloat(get(r, 'lat').replace(',', '.')) : null,
     lng: get(r, 'lng') ? parseFloat(get(r, 'lng').replace(',', '.')) : null,
   }));
   const res = await S.importProperties(admin, rows);
+  // nowe rodzaje spraw z pliku → lista w ustawieniach (kolor nadany automatycznie, wskazówki do uzupełnienia)
+  const st = await S.getSettings();
+  const merged = mergeCaseTypes(st.caseTypes || [], rows.map(r => r.case_type));
+  if (merged) { await S.saveSettings(admin, { caseTypes: merged }); toast(t('case_new_types', { n: merged.length - (st.caseTypes || []).length })); }
   toast(t('import_result', { a: res.added, b: res.dup, c: res.err }));
   render();
   // geokodowanie brakujących

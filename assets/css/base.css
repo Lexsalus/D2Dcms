@@ -173,3 +173,10 @@ tbody tr:hover { background: var(--surface-2); }
   background: color-mix(in srgb, var(--tabc) 16%, transparent); color: var(--tabc);
 }
 [data-theme="dark"] .subtab .cnt { background: color-mix(in srgb, var(--tabc) 28%, transparent); color: color-mix(in srgb, var(--tabc) 70%, white); }
+
+/* Etykieta rodzaju sprawy */
+.case-chip {
+  display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap;
+  background: color-mix(in srgb, var(--c) 15%, transparent); color: color-mix(in srgb, var(--c) 85%, var(--text));
+  border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+}

@@ -4,6 +4,7 @@
 import { t, fmtDate, fmtTime } from '../../../assets/js/core/i18n.js';
 import { esc, toast, badge, addrLine, tip, help } from '../../../assets/js/core/ui.js';
 import S from '../../../assets/js/data/data.js';
+import { caseChip, caseInfo } from '../../../assets/js/domain/cases.js';
 import { $, screen, user, nav, go, flow, render, bar } from '../core.js';
 import { bestStreetMatch, hasNumber } from '../../../assets/js/domain/verify.js';
 import { touchRecorder } from '../../../assets/js/domain/biometrics.js';
@@ -47,6 +48,7 @@ export async function visitScreen() {
       </div>
       ${p.lat != null ? `<a class="btn nav-btn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" ${tip('h_navigate')}>🧭</a>` : ''}
     </div>
+    ${caseBox(p, s)}
     ${p.notes ? `<p class="small muted">${esc(p.notes)}</p>` : ''}
 
     <div class="shots">
@@ -121,4 +123,14 @@ function shot(slot, num, title, hint, p) {
       <span class="shot-txt"><b>${title}</b><small>${f ? t('shot_retake') : hint}</small></span>
       <span class="shot-status">${status}</span>
     </button>`;
+}
+
+// Rodzaj sprawy z wskazówkami „co mówić” (z ustawień admina) — widoczny od razu po wejściu w adres
+function caseBox(p, s) {
+  const c = caseInfo(p.case_type, s.caseTypes || []);
+  if (!c) return '';
+  return `<details class="case-box" style="--c:${c.color}" ${c.guide ? 'open' : ''}>
+    <summary><span class="case-chip" style="--c:${c.color}">${esc(c.name)}</span> <span class="small">${c.guide ? t('case_what_to_say') : ''}</span>${help('h_case_box')}</summary>
+    ${c.guide ? `<div class="case-guide">${esc(c.guide).replace(/\n/g, '<br>')}</div>` : ''}
+  </details>`;
 }

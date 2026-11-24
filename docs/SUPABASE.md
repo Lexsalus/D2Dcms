@@ -17,7 +17,7 @@ publiczna rejestracja wyłączona. Sprawdzone: klucz publiczny bez logowania nie
 
 1. **SQL Editor → `supabase/00_reset.sql`** — czyści schemat `public` (tabele, widoki, funkcje, typy).
    Obiekty rozszerzeń zostają. Użytkowników logowania i pliki w Storage czyści się ręcznie w panelu.
-2. **SQL Editor → `supabase/01_schema.sql`**, potem `02_extras.sql` i `03_pin.sql` — tabele, RLS, funkcje, bucket `photos`, webhooki, PIN-y. Można uruchamiać ponownie.
+2. **SQL Editor → `supabase/01_schema.sql`**, potem `02_extras.sql`, `03_pin.sql` i `04_case_type.sql` — tabele, RLS, funkcje, bucket `photos`, webhooki, PIN-y. Można uruchamiać ponownie.
 3. **Authentication → Users → Add user** — konto administratora (e-mail + hasło, *Auto Confirm User*).
 4. **SQL Editor:**
    ```sql

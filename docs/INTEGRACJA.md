@@ -62,7 +62,7 @@ W wersji z serwerem webhooki wysyła funkcja serwerowa (bez tego ograniczenia, z
 
 ```json
 { "schema": 1, "source": "fieldcheck", "exportedAt": "ISO",
-  "properties": [ { "id", "external_id", "street", "building", "unit", "zip", "city", "lat", "lng", "notes" } ],
+  "properties": [ { "id", "external_id", "street", "building", "unit", "zip", "city", "lat", "lng", "notes", "case_type" } ],
   "reps": [ { "id", "name", "email", "active" } ],
   "assignments": [ { "id", "property_id", "rep_id", "due", "status" } ],
   "visits": [ rekord wizyty, ... ] }
@@ -70,5 +70,18 @@ W wersji z serwerem webhooki wysyła funkcja serwerowa (bez tego ograniczenia, z
 
 **Import adresów** (*Nieruchomości → Import*, plik `.json`): tablica obiektów albo `{ "properties": [...] }`.
 Pola jak w CSV (`street`/`ulica`, `building`/`nr_budynku`, `unit`/`nr_lokalu`, `zip`/`kod`, `city`/`miasto`,
-`notes`/`uwagi`, opcjonalnie `lat`, `lng`) oraz `external_id` — identyfikator rekordu w CRM, zwracany potem
+`notes`/`uwagi`, `case_type`/`rodzaj_sprawy`, opcjonalnie `lat`, `lng`) oraz `external_id` — identyfikator rekordu w CRM, zwracany potem
 w każdym webhooku, żeby CRM mógł dopasować wizytę do swojego rekordu.
+
+## Rodzaj sprawy (`case_type`)
+
+Kolumna importu rozpoznawana pod nazwami: `rodzaj_sprawy`, `rodzaj sprawy`, `rodzaj`, `typ_sprawy`, `typ sprawy`,
+`sprawa`, `kategoria`, `case_type`, `тип справи` (wielkość liter bez znaczenia). Wartość to dowolny tekst
+(np. *Egzekucja*, *Kredyt*, *Ponaglenie*, *Korespondencja*).
+
+- Nowe wartości z pliku są automatycznie dopisywane do `settings.caseTypes` (`{ name, color, guide }`) z kolorem z palety.
+- *Ustawienia → Rodzaje spraw*: kolor etykiety i wskazówki dla handlowca (`guide`, do 1000 znaków).
+- Aplikacja: etykieta na liście adresów, w szczegółach i na ekranie wizyty; na ekranie wizyty rozwinięte wskazówki.
+- Dopasowanie nazwy z ustawieniami — bez rozróżniania wielkości liter i spacji na końcach.
+- `case_type` jest w eksporcie JSON, w rekordzie wizyty i w payloadzie webhooka (`fc_visit_json`).
+- *Nieruchomości → Wzór pliku* pobiera przykładowy CSV z nagłówkami.
