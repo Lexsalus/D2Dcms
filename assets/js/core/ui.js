@@ -105,8 +105,11 @@ export const help = key => `<span class="help" tabindex="0" role="button" aria-l
   };
   const hide = () => { box?.classList.remove('show'); cur = null; };
   const target = e => e.target.closest?.('[data-tip]');
-  document.addEventListener('mouseover', e => { const el = target(e); if (el && el !== cur) show(el); else if (!el && cur) hide(); });
-  document.addEventListener('focusin', e => { const el = target(e); if (el) show(el); });
+  // na ekranach dotykowych dymek tylko po dotknięciu [?] (bez „najechania”, które zasłaniało przyciski)
+  let touch = false;
+  document.addEventListener('pointerdown', e => { touch = e.pointerType === 'touch'; }, true);
+  document.addEventListener('mouseover', e => { if (touch) return; const el = target(e); if (el && el !== cur) show(el); else if (!el && cur) hide(); });
+  document.addEventListener('focusin', e => { if (touch) return; const el = target(e); if (el) show(el); });
   document.addEventListener('focusout', hide);
   document.addEventListener('click', e => {
     const el = e.target.closest?.('.help');

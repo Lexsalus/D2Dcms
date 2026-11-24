@@ -106,12 +106,14 @@ try {
   await m.click('#lf button.btn-primary');
   await m.waitForSelector('.addr-card', { timeout: 20000 });
   check(await m.locator('.addr-card').count() === 1, 'handlowiec widzi tylko swój 1 adres');
-  await m.click('.addr-card'); await m.click('#start'); await m.waitForTimeout(1500);
-  const shoot = async (btn, file) => { const [fc] = await Promise.all([m.waitForEvent('filechooser'), m.click(btn)]); await fc.setFiles(file); await m.waitForSelector('#next', { timeout: 90000 }); };
-  await shoot('#shoot', await plate(m, `E2E TESTOWA ${stamp % 1000}`));
-  await m.click('#next'); await m.waitForTimeout(500);
-  await shoot('#shoot', await plate(m, '7'));
-  await m.click('#next'); await m.waitForTimeout(800);
+  await m.click('.addr-card'); await m.waitForSelector('[data-shot=building]', { timeout: 20000 });
+  const shoot = async (sel, file, n) => { const [fc] = await Promise.all([m.waitForEvent('filechooser'), m.click(sel)]); await fc.setFiles(file); await m.waitForFunction(k => document.querySelectorAll('.shot.done').length >= k && !document.querySelector('.shot:disabled'), n, { timeout: 90000 }); };
+  await shoot('[data-shot=building]', await plate(m, `E2E TESTOWA ${stamp % 1000}`), 1);
+  // wyjście z aplikacji i powrót do adresu (jak przy wchodzeniu na piętro)
+  await m.goto(BASE + '/app/'); await m.waitForSelector('.addr-card', { timeout: 20000 }); await m.click('.addr-card');
+  await m.waitForSelector('.shot.done', { timeout: 20000 });
+  check(await m.locator('.shot.done').count() === 1, 'po powrocie zdjęcie klatki jest zapisane');
+  await shoot('[data-shot=unit]', await plate(m, '7'), 2);
   await m.click('[data-o=talked]');
   const sig = await m.locator('#sig').boundingBox();
   await m.mouse.move(sig.x + 20, sig.y + 80); await m.mouse.down();

@@ -23,7 +23,7 @@ export function capture(type) {
       try { ({ text: ocr, conf } = await runOcr(url, type)); } catch { ocr = ''; }
     }
     await S.addPhoto(user, nav.visitId, type, url, { ocrText: ocr, ocrConf: conf, gps, fileAge });
-    flow[slot] = { url, type, ocr, gps };
+    flow[slot] = { url, type, ocr, gps, time: Date.now() };
     render();
   };
   input.click();

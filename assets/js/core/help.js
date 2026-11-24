@@ -678,3 +678,26 @@ extend('uk', {
   h_other_account: 'Увійти іншим логіном на цьому телефоні (обліковий запис і так працює лише на одному пристрої).',
   h_app_pin: 'PIN встановлює адміністратор. Обліковий запис працює лише на одному телефоні; після 5 невдалих спроб — блокування на 15 хвилин.',
 });
+
+// ---------- 0.7: uproszczony ekran wizyty ----------
+extend('pl', {
+  shot_building: 'Zdjęcie klatki / budynku', shot_building_hint: 'Tabliczka z ulicą i numerem budynku', shot_door: 'Zdjęcie drzwi', shot_door_hint: 'Numer mieszkania {n} na drzwiach',
+  shot_done: 'zrobione {t}', shot_retake: 'Dotknij, aby zrobić ponownie', note_placeholder: 'np. sąsiad mówi, że wyjechał…',
+  visit_saved_hint: 'Zdjęcie klatki jest zapisane. Możesz zamknąć aplikację, wejść na piętro i wrócić do tego adresu — zrobisz zdjęcie drzwi.',
+  need_both_photos: 'Zrób oba zdjęcia, wybierz wynik i wyślij.', need_photo: 'Zrób zdjęcie, wybierz wynik i wyślij.',
+  need_photo_building: 'Najpierw zdjęcie klatki / budynku', need_photo_door: 'Brakuje zdjęcia drzwi', photo_saving: 'Zapisuję zdjęcie…', sending: 'Wysyłam…',
+});
+extend('en', {
+  shot_building: 'Photo of entrance / building', shot_building_hint: 'Sign with street name and building number', shot_door: 'Photo of the door', shot_door_hint: 'Flat number {n} on the door',
+  shot_done: 'taken {t}', shot_retake: 'Tap to take again', note_placeholder: 'e.g. neighbour says they moved out…',
+  visit_saved_hint: 'The entrance photo is saved. You can close the app, go upstairs and come back to this address to photograph the door.',
+  need_both_photos: 'Take both photos, choose the outcome and submit.', need_photo: 'Take the photo, choose the outcome and submit.',
+  need_photo_building: 'First the entrance / building photo', need_photo_door: 'The door photo is missing', photo_saving: 'Saving photo…', sending: 'Sending…',
+});
+extend('uk', {
+  shot_building: 'Фото під’їзду / будинку', shot_building_hint: 'Табличка з вулицею та номером будинку', shot_door: 'Фото дверей', shot_door_hint: 'Номер квартири {n} на дверях',
+  shot_done: 'зроблено {t}', shot_retake: 'Торкніться, щоб зробити ще раз', note_placeholder: 'напр. сусід каже, що виїхав…',
+  visit_saved_hint: 'Фото під’їзду збережено. Можна закрити застосунок, піднятися на поверх і повернутися до цієї адреси — зробите фото дверей.',
+  need_both_photos: 'Зробіть обидва фото, виберіть результат і надішліть.', need_photo: 'Зробіть фото, виберіть результат і надішліть.',
+  need_photo_building: 'Спочатку фото під’їзду / будинку', need_photo_door: 'Бракує фото дверей', photo_saving: 'Зберігаю фото…', sending: 'Надсилаю…',
+});

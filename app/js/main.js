@@ -9,8 +9,7 @@ import { loginScreen } from './screens/login.js';
 import { listScreen } from './screens/list.js';
 import { mapScreen } from './screens/map.js';
 import { detailScreen } from './screens/detail.js';
-import { photoScreen } from './screens/photo.js';
-import { summaryScreen } from './screens/summary.js';
+import { visitScreen } from './screens/visit.js';
 import { resultScreen } from './screens/result.js';
 import { profileScreen } from './screens/profile.js';
 
@@ -58,7 +57,7 @@ async function render() {
   if (user) paintWatermark();
   bar();
   if (!user) return loginScreen();
-  const fn = { list: listScreen, map: mapScreen, profile: profileScreen, detail: detailScreen, photo: photoScreen, summary: summaryScreen, result: resultScreen }[nav.name];
+  const fn = { list: listScreen, map: mapScreen, profile: profileScreen, detail: detailScreen, visit: visitScreen, result: resultScreen }[nav.name];
   await fn();
 }
 

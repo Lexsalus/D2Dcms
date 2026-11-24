@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0 — 2026-11-24
+
+**Prostszy ekran wizyty w aplikacji** — kliknięcie adresu od razu otwiera wizytę na jednym ekranie:
+- dwa duże kafle: *Zdjęcie klatki / budynku* i *Zdjęcie drzwi* (jedno dotknięcie = aparat), z miniaturą, godziną i wstępnym odczytem;
+- wynik rozmowy (duże przyciski 2×2), notatka, podpis i *Wyślij wizytę* — bez przechodzenia przez kolejne kroki;
+- wizyta zapisuje się na bieżąco: po zdjęciu klatki można zamknąć aplikację, wejść na piętro i wrócić do adresu — zdjęcie jest zachowane;
+- na ekranach dotykowych dymki podpowiedzi pokazują się tylko po dotknięciu [?] (nie zasłaniają przycisków).
+
 ## 0.6.1 — 2026-11-23
 
 - **Logowanie handlowca PIN-em** w trybie produkcyjnym (jak w demo): login + 4–6 cyfr, telefon pamięta login (potem sam PIN).

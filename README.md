@@ -4,7 +4,7 @@ System kontroli wizyt w terenie (windykacja terenowa, D2D): panel administratora
 Handlowiec dostaje listę adresów, na miejscu robi 2 zdjęcia (budynek z numerem, numer lokalu), wybiera wynik rozmowy,
 a system sam sprawdza OCR, GPS, czas i duplikaty. Wizyty wątpliwe trafiają do ręcznej weryfikacji.
 
-> **Status: 0.6.x** — dwa tryby (wybór na stronie startowej):
+> **Status: 0.7.x** — dwa tryby (wybór na stronie startowej):
 > - **Produkcja** (domyślnie): baza Supabase, prawdziwe konta, zdjęcia w prywatnym magazynie, weryfikacja na serwerze — [docs/SUPABASE.md](docs/SUPABASE.md);
 > - **Demo**: przykładowe dane tylko w przeglądarce (localStorage + IndexedDB).
 >
@@ -35,7 +35,7 @@ zaproszenie z linkiem do ustawienia hasła. 2FA włącza każdy w *Moje konto*; 
 Panel i aplikacja w tej samej przeglądarce współdzielą dane — przypisanie w panelu od razu widać w aplikacji, a wysłana wizyta trafia do panelu.
 *Ustawienia → Przywróć dane demo* wczytuje przykładowy zestaw od nowa.
 
-## Funkcje (0.6)
+## Funkcje (0.7)
 
 **Panel administratora**
 - Pulpit: KPI z filtrami (okres, handlowiec, status), realizacja planu wg handlowca, statusy adresów, ostatnie wizyty, mapa (Leaflet/OSM).
@@ -52,8 +52,8 @@ Panel i aplikacja w tej samej przeglądarce współdzielą dane — przypisanie 
 **Aplikacja handlowca**
 - Logowanie PIN (sesja z limitem czasu), lista i mapa własnych adresów, trasa na dziś z nawigacją Google Maps.
 - Wymuszanie aktualnej wersji, działanie offline (service worker, ostatnia pobrana wersja).
-- Wizyta w 2 krokach: zdjęcie budynku → zdjęcie lokalu (lub drzwi „brak numeru”), wstępny odczyt OCR na urządzeniu.
-- Podsumowanie, wynik rozmowy, notatka, wysłanie → natychmiastowy wynik kontroli.
+- Wizyta na jednym ekranie po kliknięciu adresu: zdjęcie klatki / budynku, zdjęcie drzwi (albo „brak numeru”), wynik rozmowy,
+  notatka, podpis, wysłanie → natychmiastowy wynik kontroli. Między zdjęciami można wyjść z aplikacji — wizyta jest zapisana.
 - Znak wodny (handlowiec + urządzenie + data), zasłona przy przełączaniu aplikacji, blokada kopiowania.
 
 **Biometria behawioralna (flagi):** rytm PIN-u, podpis palcem, dynamika dotyku — szczegóły w [docs/BIOMETRIA.md](docs/BIOMETRIA.md).
@@ -74,7 +74,7 @@ app/
   index.html, app.css      aplikacja handlowca (PWA: manifest, sw.js, icon.svg)
   js/main.js               start, wersja, offline, przełączanie ekranów
   js/core.js               stan, nawigacja, pasek górny
-  js/screens/              login, list, map, detail, photo, summary, result, profile
+  js/screens/              login, list, map, visit (zdjęcia, wynik, notatka, wysłanie), detail, result, profile
   js/lib/                  capture (aparat, GPS, OCR), signature, protect (ochrona treści)
 assets/js/
   core/                    config, version, i18n (PL/EN/UA), help (podpowiedzi), ui (motyw, tooltipy, modal)

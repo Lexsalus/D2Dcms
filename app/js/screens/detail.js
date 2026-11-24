@@ -26,17 +26,6 @@ export async function detailScreen() {
       ${p.lat != null ? `<a class="btn btn-lg" ${tip('h_navigate')} target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}">🧭 ${t('navigate')}</a>` : ''}
     </div>`;
   const st = $('#start');
-  if (st) st.onclick = async () => {
-    const v = await S.startVisit(user, a.id);
-    flow.touch?.stop();
-    for (const k in flow) delete flow[k];
-    flow.touch = touchRecorder(); // dynamika dotyku w trakcie wizyty
-    // przy kontynuacji odtwórz zrobione zdjęcia
-    for (const ph of S.visitPhotos(v.id)) {
-      const slot = ph.type === 'building' ? 'building' : 'unit';
-      flow[slot] = { url: await S.photoUrl(ph), ocr: ph.ocrText, type: ph.type };
-    }
-    go({ name: 'photo', step: flow.building && p.unit ? 'unit' : 'building', assignmentId: a.id, visitId: v.id });
-  };
+  if (st) st.onclick = () => go({ name: 'visit', assignmentId: a.id });
 }
 

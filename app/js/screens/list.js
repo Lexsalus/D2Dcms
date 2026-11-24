@@ -25,6 +25,6 @@ export async function listScreen() {
         <div class="a2"><span>${esc(a.property.zip)} ${esc(a.property.city)}${a.due ? ' · ' + t('due', { d: fmtDate(a.due) }) : ''}</span>${badge(a.status)}</div>
       </button>`).join('') || `<div class="card muted">${t('no_assignments')}</div>`}`;
   wireSubtabs(screen, id => { ui.listTab = id; render(); });
-  screen.querySelectorAll('[data-a]').forEach(b => b.onclick = () => go({ name: 'detail', assignmentId: b.dataset.a }));
+  screen.querySelectorAll('[data-a]').forEach(b => b.onclick = () => go({ name: 'visit', assignmentId: b.dataset.a }));
 }
 

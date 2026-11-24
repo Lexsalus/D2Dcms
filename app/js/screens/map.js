@@ -23,7 +23,7 @@ export async function mapScreen() {
       ${link ? `<a class="btn btn-primary btn-block" target="_blank" rel="noopener" href="${link}" ${tip('h_route_nav')}>🧭 ${t('route_nav')}</a>` : ''}
       ${seq.length > 10 ? `<p class="muted small">${t('route_limit')}</p>` : ''}
     </div>` : ''}`;
-  screen.querySelectorAll('.route-list [data-a]').forEach(li => li.onclick = () => go({ name: 'detail', assignmentId: li.dataset.a }));
+  screen.querySelectorAll('.route-list [data-a]').forEach(li => li.onclick = () => go({ name: 'visit', assignmentId: li.dataset.a }));
   if (!window.L) {
     try { await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
     catch { $('#amap').innerHTML = `<div class="ph-empty" style="height:100%">${t('map_offline')}</div>`; return; }
@@ -48,7 +48,7 @@ export async function mapScreen() {
       ? L.marker([p.lat, p.lng], { icon: L.divIcon({ className: '', html: `<span class="route-pin" style="background:${col[a.status]}">${num.get(a.id)}</span>`, iconSize: [26, 26], iconAnchor: [13, 13] }) }).addTo(lmap)
       : L.circleMarker([p.lat, p.lng], { radius: 9, color: '#fff', weight: 2, fillColor: col[a.status], fillOpacity: .95 }).addTo(lmap);
     m.bindPopup(`<b>${esc(addrLine(p))}</b><br>${t('st_' + a.status)}<br><button class="btn btn-primary" data-open="${a.id}" style="margin-top:6px">${t('open')}</button>`);
-    m.on('popupopen', e => e.popup.getElement().querySelector('[data-open]').onclick = () => go({ name: 'detail', assignmentId: a.id }));
+    m.on('popupopen', e => e.popup.getElement().querySelector('[data-open]').onclick = () => go({ name: 'visit', assignmentId: a.id }));
   }
   if (pts.length) lmap.fitBounds(pts, { padding: [30, 30] }); else lmap.setView([52.07, 19.48], 6);
 }
